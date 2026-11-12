@@ -14,8 +14,12 @@
   "art/df-orange-block.webp": "e75097e8e02c84499591ac58c21359f09e592a2191492ccea1d1d6c96390e892",
   "art/df-orange-cover.webp": "ca9bf4ca81c6135ac7df62c602c8ac7d4e8a5f513fccf17910594606f13fde5a",
   "df-data.js": "1cad9ae40b73e73e84ea309cfeac24f1d480bf248ddfc04feda5f23912955f09",
+  "fonts/ArchivoBlack-OFL.txt": "3173acd82f8c6159b5b1037b539fcbd4edff68e65c2ea8b9412b5a5ca97b08ff",
+  "fonts/Inter-OFL.txt": "5b9321a4298cfeb6b34354164a1c3afc3db114569984c502b9b35d988fd58c57",
   "fonts/KaiseiDecol-OFL.txt": "6c5445d4febbf6d84025b874a85c51e7e4bfa7495279eccdb4c317a6de857b46",
   "fonts/KleeOne-OFL.txt": "e376b0df8e8a2345a9533db6f0a5333a1107975569ad9d1973a7ee557161ca38",
+  "fonts/archivo-black-latin.woff2": "4eca2abdbbc1998c3a286e2e83a2256be5263ccb801aa93b00c64fea891efd3a",
+  "fonts/inter-latin.woff2": "c940764593d0fe5d596be327ca7558855e018039fb78509aa21921fd3644c3e4",
   "fonts/kaisei-decol-500-latin.woff2": "2f00d1bb96cacdc475812bdae1bb29f3e65196a2f62a6a598619682d10c90759",
   "fonts/klee-one-latin.woff": "01bf56463a14928517b79628e2a3925fd0444940643c21b0f14d12f635ee8b6c",
   "icon-180.png": "2efd3364217718b158091ab844afaedf7078a919ec53aebf8df0b42787783b5c",
@@ -26,8 +30,8 @@
   "lib/pdf.worker.min.js": "38cde5311957b86bc3669f93e7d2566de333a90055ed6635bef60d9bf00e96f2",
   "logo.png": "eee228ee48dabec5708ccda2c4fe2b6ef8c5e7fe0f39c02199baa59f7a8d73ee",
   "manifest.json": "69630eab687178efc5a7927df6c4143c5a776bdb40b75e847bd06cec1bab8ae3",
-  "style.css": "87f2627892b84cab32bcf37ab9239def336dee434189e28095c9407f98ffb9dd",
-  "sw.js": "01955394be745801a192a1b346b11d1efcd853032a9e12f6fbdf94a01b403b33",
+  "style.css": "a17070fb1095499b93be158ba5348578265113e4ae41465e28d1df83ae8396ac",
+  "sw.js": "f3659f0dd960b64c330e80c55e64ee591547a1e708e5ea60708e52a3a572cc38",
   "world-map.svg": "6d177e23300d6f6e550f9551a2c36b5d637de7bbef89833f35a138d67a9083a7"
  },
  "keep": [
@@ -45,6 +49,6 @@
  ],
  "name": "The Eye",
  "notebook": "the-eye",
- "suite": "133547d + changes not committed",
+ "suite": "9679f87",
  "suite_folder": "../Documenting Fictions"
 }
