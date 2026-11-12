@@ -1,6 +1,6 @@
 {
  "files": {
-  "app.js": "f00eca457c00ddb30fcaedc680d3ae1fd0bdc5ccfa2be01a1c7cd279cd69a0bf",
+  "app.js": "3fb61a1873fd1ca184fe7860c2608a65c1fe6c9ed9b89120693590e8b2e65769",
   "art/df-berry-block.webp": "f14747a923085a67bdf339e088c0a6bb583e973105275b0e6660378b9332a0f8",
   "art/df-berry-cover.webp": "58e0b1db0a1b7d981188ae25b65b6ce9e9997d283c807fd14e80fbe68c500e9c",
   "art/df-fern-block.webp": "8e9ad09f40f120bb71228113027a2a1a2a3e330350766d16acb2ace312727b1b",
@@ -20,14 +20,14 @@
   "fonts/klee-one-latin.woff": "01bf56463a14928517b79628e2a3925fd0444940643c21b0f14d12f635ee8b6c",
   "icon-180.png": "2efd3364217718b158091ab844afaedf7078a919ec53aebf8df0b42787783b5c",
   "icon-512.png": "52df2e8d4b7632453af5326bf6ea1b8c11fd877f12cd51e52f62923b5ebe27f6",
-  "index.html": "b947eafeb3283378398c15259377a1ee6d19574ccc074eff5e3ec40733f24869",
+  "index.html": "326ca3218ad7c2b6363c52062527f90256130c13b7eb4fe047dca51e7efd1094",
   "lib/jspdf.umd.min.js": "98ccf17aa10c20bb1301762618fcc9b6ab3a4e7f26b6071d64d0b41154df3875",
   "lib/pdf.min.js": "978fd1b2d134a98e98966186a97777bebf87d8e770dadab1ece3687e21a5aa6c",
   "lib/pdf.worker.min.js": "38cde5311957b86bc3669f93e7d2566de333a90055ed6635bef60d9bf00e96f2",
   "logo.png": "eee228ee48dabec5708ccda2c4fe2b6ef8c5e7fe0f39c02199baa59f7a8d73ee",
   "manifest.json": "69630eab687178efc5a7927df6c4143c5a776bdb40b75e847bd06cec1bab8ae3",
-  "style.css": "de60a6649d8df559ec3505dce288de526c6fa14c35079b2e7ff8425a1fd46d7e",
-  "sw.js": "3c179f0bf34fff1b7da42f1eacbaf3925a30fb52b2cff14a27811fa86007d63d",
+  "style.css": "14129bca684691fdd18008c53d33f5179faa4da02103b7563ca5270787e777c5",
+  "sw.js": "12942f87fa78869a37e3d1359e7a46ca6443323a164b67e1bf884f799f9f6ade",
   "world-map.svg": "6d177e23300d6f6e550f9551a2c36b5d637de7bbef89833f35a138d67a9083a7"
  },
  "keep": [
@@ -45,6 +45,6 @@
  ],
  "name": "The Eye",
  "notebook": "the-eye",
- "suite": "e945955 + changes not committed",
+ "suite": "68c2595 + changes not committed",
  "suite_folder": "../Documenting Fictions"
 }
