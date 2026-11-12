@@ -1,6 +1,6 @@
 {
  "files": {
-  "app.js": "3288ab354b62bc58f6216d0db5ba5f57001d8464473d37656e2e3a5f16fa0698",
+  "app.js": "e18deec60ec2ba069edda5ac545a4f21ba2477b8e1a820a19f6244a4cdf23a31",
   "art/df-berry-block.webp": "f14747a923085a67bdf339e088c0a6bb583e973105275b0e6660378b9332a0f8",
   "art/df-berry-cover.webp": "58e0b1db0a1b7d981188ae25b65b6ce9e9997d283c807fd14e80fbe68c500e9c",
   "art/df-fern-block.webp": "8e9ad09f40f120bb71228113027a2a1a2a3e330350766d16acb2ace312727b1b",
@@ -13,7 +13,7 @@
   "art/df-ocean-cover.webp": "b0c3fd57eaf1f00c1e4114c4111c5adcfd40f8db8fdcd40a92af4572a42cc65a",
   "art/df-orange-block.webp": "e75097e8e02c84499591ac58c21359f09e592a2191492ccea1d1d6c96390e892",
   "art/df-orange-cover.webp": "ca9bf4ca81c6135ac7df62c602c8ac7d4e8a5f513fccf17910594606f13fde5a",
-  "df-data.js": "1cad9ae40b73e73e84ea309cfeac24f1d480bf248ddfc04feda5f23912955f09",
+  "df-data.js": "37a17549bcfbd0d7b22ddf4eac29fca4b85c41637a455142cd08290340d02d15",
   "fonts/ArchivoBlack-OFL.txt": "3173acd82f8c6159b5b1037b539fcbd4edff68e65c2ea8b9412b5a5ca97b08ff",
   "fonts/Inter-OFL.txt": "5b9321a4298cfeb6b34354164a1c3afc3db114569984c502b9b35d988fd58c57",
   "fonts/KaiseiDecol-OFL.txt": "6c5445d4febbf6d84025b874a85c51e7e4bfa7495279eccdb4c317a6de857b46",
@@ -24,14 +24,14 @@
   "fonts/klee-one-latin.woff": "01bf56463a14928517b79628e2a3925fd0444940643c21b0f14d12f635ee8b6c",
   "icon-180.png": "2efd3364217718b158091ab844afaedf7078a919ec53aebf8df0b42787783b5c",
   "icon-512.png": "52df2e8d4b7632453af5326bf6ea1b8c11fd877f12cd51e52f62923b5ebe27f6",
-  "index.html": "37e046e9af8aabbb0e819cbc5e904afbb0f73c5b1df7964b6ffc28c3dcd9ab2c",
+  "index.html": "1e79f7f49f03f059ed6e9a296328212e6ad775c8fef955271a3096bbd5f0d2ce",
   "lib/jspdf.umd.min.js": "98ccf17aa10c20bb1301762618fcc9b6ab3a4e7f26b6071d64d0b41154df3875",
   "lib/pdf.min.js": "978fd1b2d134a98e98966186a97777bebf87d8e770dadab1ece3687e21a5aa6c",
   "lib/pdf.worker.min.js": "38cde5311957b86bc3669f93e7d2566de333a90055ed6635bef60d9bf00e96f2",
   "logo.png": "eee228ee48dabec5708ccda2c4fe2b6ef8c5e7fe0f39c02199baa59f7a8d73ee",
   "manifest.json": "69630eab687178efc5a7927df6c4143c5a776bdb40b75e847bd06cec1bab8ae3",
-  "style.css": "a17070fb1095499b93be158ba5348578265113e4ae41465e28d1df83ae8396ac",
-  "sw.js": "f3659f0dd960b64c330e80c55e64ee591547a1e708e5ea60708e52a3a572cc38",
+  "style.css": "e187244be84220325c9b3ea126cdd5fbf4cf5078de7e035356c56bc1a923ea86",
+  "sw.js": "8d4100de038f702f2aeedb22c03a29049223da88ef332515439b1da43c60ccbf",
   "world-map.svg": "6d177e23300d6f6e550f9551a2c36b5d637de7bbef89833f35a138d67a9083a7"
  },
  "keep": [
@@ -49,6 +49,6 @@
  ],
  "name": "The Eye",
  "notebook": "the-eye",
- "suite": "9679f87",
- "suite_folder": "../Documenting Fictions"
+ "suite": "bd37162",
+ "suite_folder": "../../../../../../../../private/tmp/claude-501/-Users-starkyproductions-Library-CloudStorage-OneDrive-SharedLibraries-Onedrive-Documents-Claude/eb4d2f99-11c2-4f78-82fd-4869b227ac5f/scratchpad/dfclean"
 }
