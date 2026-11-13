@@ -1,6 +1,6 @@
 {
  "files": {
-  "app.js": "e18deec60ec2ba069edda5ac545a4f21ba2477b8e1a820a19f6244a4cdf23a31",
+  "app.js": "3d3038aa593954a058b4d188694d212a0e8a25636ef94025130ee1663272a385",
   "art/df-berry-block.webp": "f14747a923085a67bdf339e088c0a6bb583e973105275b0e6660378b9332a0f8",
   "art/df-berry-cover.webp": "58e0b1db0a1b7d981188ae25b65b6ce9e9997d283c807fd14e80fbe68c500e9c",
   "art/df-fern-block.webp": "8e9ad09f40f120bb71228113027a2a1a2a3e330350766d16acb2ace312727b1b",
@@ -30,8 +30,8 @@
   "lib/pdf.worker.min.js": "38cde5311957b86bc3669f93e7d2566de333a90055ed6635bef60d9bf00e96f2",
   "logo.png": "eee228ee48dabec5708ccda2c4fe2b6ef8c5e7fe0f39c02199baa59f7a8d73ee",
   "manifest.json": "69630eab687178efc5a7927df6c4143c5a776bdb40b75e847bd06cec1bab8ae3",
-  "style.css": "e187244be84220325c9b3ea126cdd5fbf4cf5078de7e035356c56bc1a923ea86",
-  "sw.js": "fdf0f7f41d831969362cf6b452c90b9556c696179f43115a22a46f7fa032ffb2",
+  "style.css": "03e30f77d8774b1582a0732e773fb1f96bf4be06e8355c79acd9ef6a3a13f1b4",
+  "sw.js": "909025adce5226dd09cbaece15fe135d82b6120b586ea5befec916d38b9a001b",
   "world-map.svg": "6d177e23300d6f6e550f9551a2c36b5d637de7bbef89833f35a138d67a9083a7"
  },
  "keep": [
@@ -49,6 +49,6 @@
  ],
  "name": "The Eye",
  "notebook": "the-eye",
- "suite": "a9cd270 + changes not committed",
+ "suite": "86b56c3",
  "suite_folder": "../../../../../../../../private/tmp/claude-501/-Users-starkyproductions-Library-CloudStorage-OneDrive-SharedLibraries-Onedrive-Documents-Claude/c95c4b1a-0018-47fd-8e7f-7614c230c7b3/scratchpad/df-export"
 }
