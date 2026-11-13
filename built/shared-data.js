@@ -1,18 +1,26 @@
-// Documenting Fictions: the data helpers every notebook shares.
+// Made by tools/join.mjs from the files listed in files.txt. Never edit it: change those files, then run node tools/join.mjs.
+
+// ---- data/shared/basics.js ----
+// Documenting Fictions: the data helpers every notebook shares. This file:
+// IndexedDB made a little plainer, plus small helpers (dates, ids, where the
+// notebooks are). Loaded first; the files after it are in df-data.js's list.
 //
-// The master copy is shared/df-data.js in the suite; tools/sync.py copies it
-// into each notebook's folder as df-data.js, so a notebook copied out on its
-// own still has it. Edit this one, then run the sync.
+// The master copies are in shared/data/ in the suite; tools/sync.py copies
+// them into each notebook's data/shared/ folder, so a notebook copied out on
+// its own still has them. Edit those, then run the sync.
 //
 // Each notebook keeps its own database, named for it: ref-notebook,
 // contact-sheet, the-eye's starky-moodboards (its photos; its shoots are in
 // localStorage, dailies_state_v1) and overthoughts. What one notebook hands
 // another (a Ref board sent to a shoot in The Eye) goes in a database of its
 // own, df-links, as a link saying where it came from and where it went:
-// { id, fromApp, fromId, toApp, toId, type, createdAt }. (The reflection
-// helpers below are from before reflections stayed in The Eye; unused.)
+// { id, fromApp, fromId, toApp, toId, type, createdAt }.
+//
+// The files share their inner helpers through window.DFDataParts; what the
+// notebooks use is window.DFData, put together last by df-data.js.
 (function () {
   'use strict';
+  const parts = (window.DFDataParts = {});
 
   // ---------- IndexedDB, a little plainer ----------
   const ask = (r) => new Promise((ok, no) => { r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); });
@@ -46,7 +54,6 @@
     return finish(tx);
   }
   async function deleteOne(db, store, key) { const tx = db.transaction(store, 'readwrite'); tx.objectStore(store).delete(key); return finish(tx); }
-
   const hasText = (v) => typeof v === 'string' && v.trim() !== '';
   const nowIso = () => new Date().toISOString();
   const pad = (n) => String(n).padStart(2, '0');
@@ -56,6 +63,70 @@
     get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
     set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* private mode */ } },
   };
+  // ---------- Where the notebooks are ----------
+  const inSuite = () => !!window.DF_SUITE;
+  // A link into another notebook of the suite (null on its own).
+  const notebookUrl = (id, params) => (inSuite() ? `../${id}/${params ? `?${new URLSearchParams(params)}` : ''}` : null);
+
+  Object.assign(parts, {
+    ask, finish, open, rows, getOne, putMany, deleteOne, hasText, nowIso, todayStr, uid, store,
+    inSuite, notebookUrl
+  });
+})();
+;
+
+// ---- data/shared/files.js ----
+// Handing a file over: saving one to the phone or computer, and picking files
+// to bring in.
+(function () {
+  'use strict';
+  const parts = window.DFDataParts;
+
+  // ---------- Handing a file over ----------
+  // The share sheet where there is one (Save to Files on a phone), else a download.
+  async function saveFile(file, { share = true } = {}) {
+    if (share && navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: file.name }); return 'shared'; } catch (e) { if (e && e.name === 'AbortError') return 'cancelled'; }
+    }
+    const url = URL.createObjectURL(file);
+    const a = document.createElement('a');
+    a.href = url; a.download = file.name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    return 'downloaded';
+  }
+  // Asks for files (as many as wanted); resolves with them, [] if none.
+  function pickFiles(accept = 'application/json,.json') {
+    return new Promise((ok) => {
+      const input = document.createElement('input');
+      input.type = 'file'; input.accept = accept; input.multiple = true; input.style.display = 'none';
+      input.addEventListener('change', () => { ok(input.files ? [...input.files] : []); input.remove(); });
+      document.body.appendChild(input);
+      input.click();
+    });
+  }
+  // Asks for a file; resolves with it, or null if none was picked.
+  function pickFile(accept = 'application/json,.json') {
+    return new Promise((ok) => {
+      const input = document.createElement('input');
+      input.type = 'file'; input.accept = accept; input.style.display = 'none';
+      input.addEventListener('change', () => { ok(input.files && input.files[0] ? input.files[0] : null); input.remove(); });
+      document.body.appendChild(input);
+      input.click();
+    });
+  }
+
+  Object.assign(parts, { saveFile, pickFiles, pickFile });
+})();
+;
+
+// ---- data/shared/overthoughts.js ----
+// Overthoughts' own database, and a shoot's reflection kept there. (The
+// reflection helpers are from before reflections stayed in The Eye; unused.)
+(function () {
+  'use strict';
+  const parts = window.DFDataParts;
+  const { finish, open, rows, hasText, nowIso, todayStr } = parts;
 
   // ---------- Overthoughts' own database ----------
   const OT = 'overthoughts';
@@ -81,7 +152,6 @@
   }
   const linkId = (fromApp, fromId, toApp, toId) => `${fromApp}:${fromId}>${toApp}:${toId}`;
   const reflectionId = (shootId) => `reflection-${shootId}`;
-
   // ---------- A shoot's reflection, from The Eye ----------
   // `shoot` is The Eye's shoot; `name` how The Eye shows it. Every shoot that's
   // been shot gets an entry (an empty one waits for its reflection), so the
@@ -141,6 +211,18 @@
     return (await rows(db, 'entries')).map(([, e]) => e).filter((e) => e.kind === 'reflection');
   }
 
+  Object.assign(parts, { overthoughts, linkId, reflectionId, saveReflections, dropReflections, reflections });
+})();
+;
+
+// ---- data/shared/the-eye.js ----
+// The Eye's own data, read from where it keeps it: its shoots in
+// localStorage, its photos in its database.
+(function () {
+  'use strict';
+  const parts = window.DFDataParts;
+  const { open, rows, hasText, nowIso, todayStr, store } = parts;
+
   // ---------- The Eye's own data, read from where it keeps it ----------
   const EYE_STATE = 'dailies_state_v1';
   const EYE_IDB = 'starky-moodboards';
@@ -166,7 +248,6 @@
     const payload = { version: 1, exportedAt: nowIso(), state, images };
     return new File([JSON.stringify(payload)], `starky-backup-${todayStr()}.json`, { type: 'application/json' });
   }
-
   // The Eye's backup file (or the reflections file it saves for Overthoughts), read.
   async function readEyeFile(file) {
     let data;
@@ -174,6 +255,20 @@
     if (!data || !data.state || !Array.isArray(data.state.shoots)) throw new Error("That file isn't from The Eye.");
     return { state: data.state, images: data.images || {} };
   }
+
+  Object.assign(parts, { openEyePhotos, eyeState, eyeShootName, eyeBackupFile, readEyeFile });
+})();
+;
+
+// ---- data/shared/journal-move.js ----
+// The Journal moves from The Eye to Overthoughts, once.
+(function () {
+  'use strict';
+  const parts = window.DFDataParts;
+  const {
+    finish, rows, getOne, hasText, nowIso, todayStr, store, overthoughts, reflectionId,
+    saveReflections, openEyePhotos, eyeState, eyeShootName
+  } = parts;
 
   // ---------- The Journal moves to Overthoughts (once) ----------
   // Copies, never moves: The Eye's own Journal and reflections stay where they
@@ -237,6 +332,17 @@
     if (!from) store.set(MOVED_KEY, nowIso());
     return { entries: entries.length, reflections: shoots.filter((s) => hasText(s.whatWentRight) || hasText(s.couldBeBetter) || hasText(s.lessonsLearned)).length };
   }
+
+  Object.assign(parts, { journalMoved, somethingToMove, moveJournal });
+})();
+;
+
+// ---- data/shared/json-backup.js ----
+// A whole database as one file (JSON), and back.
+(function () {
+  'use strict';
+  const parts = window.DFDataParts;
+  const { finish, open, rows, nowIso, todayStr } = parts;
 
   // ---------- A whole database as one file, and back ----------
   // Photos (Blobs) go in as data URLs, so the file is plain JSON. Built in
@@ -318,6 +424,17 @@
     }
   }
 
+  Object.assign(parts, { blobToDataUrl, exportDb, importDb });
+})();
+;
+
+// ---- data/shared/zip-format.js ----
+// The zip file format: writing a zip and reading one, plus the names and
+// sizes the zip backup uses.
+(function () {
+  'use strict';
+  const parts = window.DFDataParts;
+
   // ---------- A notebook as a zip, and back ----------
   // The backups the notebooks make now (and the shelf's, of all four): a
   // plain .zip the phone never holds in memory. backup.json says what's in
@@ -345,19 +462,24 @@
   // first way (one .json, exportDb above) still go back in with importDb.
   const ZIP = { format: 'df-backup', version: 1 };
   const MANIFEST = 'backup.json';
-  const CHUNK = 4 * 1024 * 1024; // read and copied this much at a time
-  const BATCH = 24 * 1024 * 1024; // stored this much at a time
-  const PAGE = 10; // rows read at a time
-  const BIG_TEXT = 64 * 1024; // a string longer than this goes in as a file
-  const MAX32 = 0xffffffff; // the mark for "in the zip64 extra instead"
-  const ZIP_LIMIT = MAX32; // sizes and places from here on need zip64
+  const CHUNK = 4 * 1024 * 1024;
+ // read and copied this much at a time
+  const BATCH = 24 * 1024 * 1024;
+ // stored this much at a time
+  const PAGE = 10;
+ // rows read at a time
+  const BIG_TEXT = 64 * 1024;
+ // a string longer than this goes in as a file
+  const MAX32 = 0xffffffff;
+ // the mark for "in the zip64 extra instead"
+  const ZIP_LIMIT = MAX32;
+ // sizes and places from here on need zip64
   const SCRATCH = 'df-backup-scratch-';
-  const PART = 200 * 1024 * 1024; // the most a phone is handed at once
+  const PART = 200 * 1024 * 1024;
+ // the most a phone is handed at once
   const PART_NAME = 'part.json';
-
   const dbNames = async () => (indexedDB.databases ? new Set((await indexedDB.databases()).map((d) => d.name)) : null);
   const dropDb = (name) => new Promise((ok) => { const r = indexedDB.deleteDatabase(name); r.onsuccess = r.onerror = r.onblocked = () => ok(); });
-
   const CRC_TABLE = (() => {
     const t = new Uint32Array(256);
     for (let n = 0; n < 256; n++) {
@@ -389,14 +511,12 @@
   // 64-bit numbers as two halves (sizes past 4 GB need them).
   const set64 = (dv, at, n) => { dv.setUint32(at, n % 0x100000000, true); dv.setUint32(at + 4, Math.floor(n / 0x100000000), true); };
   const get64 = (dv, at) => dv.getUint32(at, true) + dv.getUint32(at + 4, true) * 0x100000000;
-
   function dosTime(d) {
     return {
       time: (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1),
       date: ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate(),
     };
   }
-
   // entries: [{ name, blob, crc }], stored as they are, each with its CRC
   // already worked out. The Blob that comes back is made of the entries' own Blobs.
   async function zipOf(entries) {
@@ -485,7 +605,6 @@
     tail.push(end);
     return new Blob([...parts, ...central, ...tail], { type: 'application/zip' });
   }
-
   // The files in a zip, read from its end; each is cut out of `file` when asked for.
   async function readZip(file) {
     const view = async (at, n) => new DataView(await file.slice(at, at + n).arrayBuffer());
@@ -547,6 +666,24 @@
     };
   }
 
+  Object.assign(parts, {
+    ZIP, MANIFEST, CHUNK, BATCH, PAGE, BIG_TEXT, SCRATCH, PART, PART_NAME, dbNames, dropDb,
+    crcBytes, crcOf, zipOf, readZip
+  });
+})();
+;
+
+// ---- data/shared/zip-backup.js ----
+// Saving a backup: the notebooks' databases packed into a zip (in parts on
+// a phone), and the steps for handing it over.
+(function () {
+  'use strict';
+  const parts = window.DFDataParts;
+  const {
+    ask, finish, open, nowIso, todayStr, uid, ZIP, MANIFEST, BATCH, PAGE, BIG_TEXT, SCRATCH,
+    PART, PART_NAME, dbNames, dropDb, crcBytes, crcOf, zipOf, saveFile
+  } = parts;
+
   // Where a backup keeps its photos made of bytes or text until the zip is
   // saved: entries wait here in memory until there's a batch, then they're
   // stored, and once they all are, swapped for the stored copies (files on
@@ -601,7 +738,6 @@
       if (m && Date.now() - Number(m[1]) > 3600000) dropDb(n);
     }
   }
-
   // Values into backup.json, the photos in them set aside as files, each
   // with its checksum. w is the same value read a second time: a Blob's
   // checksum is read from that copy (see above).
@@ -678,7 +814,6 @@
     }
   }
   const sizeText = (n) => (n >= 1e9 ? `${(n / 1e9).toFixed(1)} GB` : n >= 1e6 ? `${Math.max(1, Math.round(n / 1e6))} MB` : `${Math.max(1, Math.round(n / 1e3))} KB`);
-
   // The backup: { parts (Files), size, release(i), done }, or null when
   // there's nothing to back up. One part, unless it's to be handed to a
   // phone's share sheet and is bigger than PART. release(i) once part i is
@@ -757,12 +892,23 @@
       },
     };
   }
-
   // True for a zip (a backup made by zipBackup); the first kind is JSON.
   async function isZipFile(file) {
     const b = new Uint8Array(await file.slice(0, 4).arrayBuffer());
     return b[0] === 0x50 && b[1] === 0x4b && b[2] === 0x03 && b[3] === 0x04;
   }
+
+  Object.assign(parts, { sizeText, zipBackup, backupSteps, isZipFile });
+})();
+;
+
+// ---- data/shared/zip-restore.js ----
+// Restoring a backup: reading the zip and putting each database back.
+(function () {
+  'use strict';
+  const parts = window.DFDataParts;
+  const { ask, finish, open, ZIP, MANIFEST, CHUNK, BATCH, PART_NAME, dbNames, readZip } = parts;
+
   // A backup opened (its one zip, or all the files it was saved as), and
   // checked before anything is changed: what kind it is, and every file it
   // names there.
@@ -931,6 +1077,18 @@
     return { manifest: b.manifest, extra: b.manifest.extra || {}, counts, local };
   }
 
+  Object.assign(parts, { restoreZip });
+})();
+;
+
+// ---- data/shared/links.js ----
+// Links between notebooks: a Ref board sent to a shoot in The Eye, and the
+// board file that carries it.
+(function () {
+  'use strict';
+  const parts = window.DFDataParts;
+  const { finish, open, rows, getOne, hasText, nowIso, uid, blobToDataUrl } = parts;
+
   // ---------- Links: a Ref board sent to a shoot in The Eye ----------
   // Its own database, df-links, so neither notebook writes into the other's:
   //   links     { id, fromApp, fromId, toApp, toId, type, createdAt, updatedAt,
@@ -977,7 +1135,6 @@
     return finish(tx);
   });
   const pictureUrl = (p) => (p && p.bytes ? URL.createObjectURL(new Blob([p.bytes], { type: p.type || 'image/jpeg' })) : '');
-
   // A board as one file, for a Ref and a The Eye that don't share a phone's
   // storage (each installed on its own): the same pictures, in a versioned
   // JSON file. Built in pieces, so a big board is never one string.
@@ -1011,44 +1168,27 @@
     };
   }
 
-  // ---------- Handing a file over ----------
-  // The share sheet where there is one (Save to Files on a phone), else a download.
-  async function saveFile(file, { share = true } = {}) {
-    if (share && navigator.canShare && navigator.canShare({ files: [file] })) {
-      try { await navigator.share({ files: [file], title: file.name }); return 'shared'; } catch (e) { if (e && e.name === 'AbortError') return 'cancelled'; }
-    }
-    const url = URL.createObjectURL(file);
-    const a = document.createElement('a');
-    a.href = url; a.download = file.name;
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 4000);
-    return 'downloaded';
-  }
-  // Asks for files (as many as wanted); resolves with them, [] if none.
-  function pickFiles(accept = 'application/json,.json') {
-    return new Promise((ok) => {
-      const input = document.createElement('input');
-      input.type = 'file'; input.accept = accept; input.multiple = true; input.style.display = 'none';
-      input.addEventListener('change', () => { ok(input.files ? [...input.files] : []); input.remove(); });
-      document.body.appendChild(input);
-      input.click();
-    });
-  }
-  // Asks for a file; resolves with it, or null if none was picked.
-  function pickFile(accept = 'application/json,.json') {
-    return new Promise((ok) => {
-      const input = document.createElement('input');
-      input.type = 'file'; input.accept = accept; input.style.display = 'none';
-      input.addEventListener('change', () => { ok(input.files && input.files[0] ? input.files[0] : null); input.remove(); });
-      document.body.appendChild(input);
-      input.click();
-    });
-  }
+  Object.assign(parts, {
+    linksWhere, getLink, saveLink, linkPictures, dropLinks, pictureUrl, boardFile,
+    readBoardFile
+  });
+})();
+;
 
-  // ---------- Where the notebooks are ----------
-  const inSuite = () => !!window.DF_SUITE;
-  // A link into another notebook of the suite (null on its own).
-  const notebookUrl = (id, params) => (inSuite() ? `../${id}/${params ? `?${new URLSearchParams(params)}` : ''}` : null);
+// ---- data/shared/df-data.js ----
+// window.DFData: everything the notebooks use from the shared data files,
+// put together. Loaded last, after the other files in data/shared/.
+(function () {
+  'use strict';
+  const parts = window.DFDataParts;
+  const {
+    open, rows, getOne, putMany, deleteOne, hasText, nowIso, todayStr, uid, overthoughts,
+    linkId, reflectionId, saveReflections, dropReflections, reflections, eyeState,
+    eyeShootName, eyeBackupFile, readEyeFile, journalMoved, somethingToMove, moveJournal,
+    exportDb, importDb, sizeText, zipBackup, backupSteps, isZipFile, restoreZip, linksWhere,
+    getLink, saveLink, linkPictures, dropLinks, pictureUrl, boardFile, readBoardFile, saveFile,
+    pickFiles, pickFile, inSuite, notebookUrl
+  } = parts;
 
   window.DFData = {
     open, rows, getOne, putMany, deleteOne, hasText, todayStr, uid, nowIso,
@@ -1061,3 +1201,4 @@
     linksWhere, getLink, saveLink, linkPictures, dropLinks, pictureUrl, boardFile, readBoardFile,
   };
 })();
+;
