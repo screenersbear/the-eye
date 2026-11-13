@@ -30,8 +30,8 @@
   "lib/pdf.worker.min.js": "38cde5311957b86bc3669f93e7d2566de333a90055ed6635bef60d9bf00e96f2",
   "logo.png": "eee228ee48dabec5708ccda2c4fe2b6ef8c5e7fe0f39c02199baa59f7a8d73ee",
   "manifest.json": "69630eab687178efc5a7927df6c4143c5a776bdb40b75e847bd06cec1bab8ae3",
-  "style.css": "d503e9b582229464b6809bf95ac4e1add49ff7f0b76d030a8e1419a9312d57a5",
-  "sw.js": "457fb4aa46354efe20de2f5384062666e5163e40714ab7321e1f5398d3cb0ddc",
+  "style.css": "7a1638e21e11270b0835f096eab9dd74595313354d19e41c2a9b568a90cb6f29",
+  "sw.js": "e50946840893502a9234c63c5eb5aec5998b0d89a41187b622d6ee6533324d67",
   "world-map.svg": "6d177e23300d6f6e550f9551a2c36b5d637de7bbef89833f35a138d67a9083a7"
  },
  "keep": [
@@ -49,6 +49,6 @@
  ],
  "name": "The Eye",
  "notebook": "the-eye",
- "suite": "24798a0",
+ "suite": "cca65c6",
  "suite_folder": "../../../../../../../../private/tmp/claude-501/-Users-starkyproductions-Library-CloudStorage-OneDrive-SharedLibraries-Onedrive-Documents-Claude/c95c4b1a-0018-47fd-8e7f-7614c230c7b3/scratchpad/df-export"
 }
