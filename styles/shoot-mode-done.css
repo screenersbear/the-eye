@@ -64,23 +64,6 @@
   display: none;
 }
 
-/* Monday brief: last week's numbers as the Overview's own tiles, then the
-   week's page of the Journal's weekly log, each inside the body's 20px
-   gutter (the body has none of its own, see .shoot-mode-body). The tiles
-   here are a read-out, not buttons, so they drop the tap look the
-   Overview's open a list with — the same way .log-card drops .card's. */
-.monday-brief-stats {
-  margin: 14px 20px;
-}
-
-.monday-brief-stats .stat-box {
-  cursor: default;
-}
-
-.monday-brief-stats .stat-box:active {
-  opacity: 1;
-}
-
 .monday-brief-log {
   margin: 14px 20px;
 }
@@ -143,25 +126,6 @@
      native blue tint by default, which is exactly the stray blue this was
      showing instead of the app's own text color. */
   color: var(--text);
-}
-
-/* Archive mode's read-only counterpart to .shoot-mode-review-field above —
-   same label-over-value block and divider, but a plain div rather than a
-   button: nothing in Archive mode is tappable, so no cursor or :active
-   state, just typed text laid out like a report. Reuses
-   .shoot-mode-review-label/-value as-is for the text itself. */
-.archive-mode-field {
-  width: 100%;
-  padding: 14px 20px;
-  border-bottom: 1px solid var(--border);
-}
-
-.archive-mode-field:last-child {
-  border-bottom: 0;
-}
-
-.archive-mode-final-images {
-  padding: 4px 20px 14px;
 }
 
 /* Lighting setups inside the review popup: one group per setup, its name as

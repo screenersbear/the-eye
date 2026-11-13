@@ -173,6 +173,8 @@ window.EyeParts.addShootOpen = function addShootOpen(ed) {
     document.getElementById('shootTeamFinalized').checked = s ? !!s.teamFinalized : false;
     ed.currentTeamMembers = s && s.teamMembers ? s.teamMembers.map(tm => ({ ...tm })) : [];
     ed.renderTeamMembers();
+    // "Date not set", "Location to be decided", "Not sure yet" (not-sure.js).
+    ed.loadNotSure(s);
 
     ed.renderShootFrameworkTags(s);
     ed.renderShootNotes(s ? s.id : null);
@@ -200,8 +202,10 @@ window.EyeParts.addShootOpen = function addShootOpen(ed) {
     if (!id && ed.isNewShootGuideOn()) ed.queueShootWizard();
     else if (!s) ed.maybeShowStatusSwatchIntro();
 
-    // Back to the page this shoot was last open on, at its top.
-    const remembered = ed.shootPageMemory[ed.currentShootId] || { id: 'basicInfoHeading', sub: 0 };
+    // The front page, or the page it was on when the app was last closed
+    // (ed.shootOpenAt, set by the place it comes back to, offline.js).
+    const remembered = ed.shootOpenAt || { id: 'front', sub: 0 };
+    ed.shootOpenAt = null;
     ed.shootFlows = null;
     ed.shootSub = 0;
     ed.shootBreakChanged = [];

@@ -78,14 +78,14 @@
    the page, and the notebook's color a shade deeper right around it, solid
    again toward the notebook's outer edge. */
 :root { --pg-r: 16px; }
-.nb-board-page, .nb-turn, .nb-turn-under, #shootModalOverlay > .modal, #archiveModeOverlay > .modal { border-radius: 0 var(--pg-r) var(--pg-r) 0; }
+.nb-board-page, .nb-turn, .nb-turn-under, #shootModalOverlay > .modal { border-radius: 0 var(--pg-r) var(--pg-r) 0; }
 :root[data-side="verso"] .nb-board-page, :root[data-side="verso"] .nb-board > .nb-turn, :root[data-side="verso"] .nb-board > .nb-turn-under { border-radius: var(--pg-r) 0 0 var(--pg-r); }
 .nb-page-foot { border-bottom-right-radius: var(--pg-r); } /* its white mustn't square off the page's corner */
 @supports (color: color-mix(in oklab, red, blue)) {
   :root { --rim-deep: color-mix(in oklab, var(--accent) 84%, #000); }
   :root[data-book="ink"] { --rim-deep: color-mix(in oklab, var(--accent) 70%, #000); } /* navy needs more to show */
   .nb-board-page { box-shadow: 0 0 3px 1px var(--rim-deep), 0 0 0 40px var(--accent); transition: box-shadow 0.3s; }
-  #shootModalOverlay > .modal, #archiveModeOverlay > .modal { box-shadow: 0 0 3px 1px var(--rim-deep); }
+  #shootModalOverlay > .modal { box-shadow: 0 0 3px 1px var(--rim-deep); }
   /* The opening book is a picture without the deeper shade, so it comes in
      once the real page takes over rather than popping on. */
   :root:has(#bookOverlay:not([hidden])) .nb-board-page { box-shadow: 0 0 3px 1px var(--accent), 0 0 0 40px var(--accent); transition: none; }
@@ -113,20 +113,12 @@
    headings elsewhere come up; the big text stays. Pages are packed from what's
    drawn, so this only means a little more turning. The Journal keeps its 28px
    ruled lines, so nothing there passes about 22px. */
-.brand-title, .topbar h1 { font-size: 28px; }
-.new-shoot-cta { font-size: 17px; line-height: 24px; }
-.stat-num { font-size: 31px; }
-.stat-label { font-size: 13.5px; }
-.section-block h2, .section-block h2.heading-yellow, .section-block h2.heading-navy { font-size: 22px; }
-.section-block h2 span { font-size: 15px; }
-.shoot-row-title, .shoot-row-compact-title { font-size: 22px; }
-.shoot-row-date-line, .shoot-row-due { font-size: 14.5px; }
-.shoot-row-status-pill, .shoot-row .badge, .badge { font-size: 13px; line-height: 18px; }
+.shoot-row-compact-title { font-size: 22px; }
+.badge { font-size: 13px; line-height: 18px; }
 .filter-toggle { font-size: 15.5px; }
 .chip { font-size: 15px; line-height: 20px; }
 h2.status-group-heading, h2.status-group-heading.heading-yellow, h2.status-group-heading.heading-navy { font-size: 17px; }
-.status-group-heading.archive-month-heading, .archive-month-heading.heading-yellow, .archive-month-heading.heading-navy, .upcoming-subheading { font-size: 15px; }
-.stats-legend-row { font-size: 15.5px; }
+.status-group-heading.archive-month-heading, .archive-month-heading.heading-yellow, .archive-month-heading.heading-navy { font-size: 15px; }
 #journalList h2.status-group-heading { font-size: 17px; }
 #journalList .log-week-heading { font-size: 15px; }
 #journalList .journal-entry-date { font-size: 14.5px; }
@@ -140,5 +132,4 @@ h2.status-group-heading, h2.status-group-heading.heading-yellow, h2.status-group
 .status-swatch-display { font-size: 14px; }
 .field-hint { font-size: 15px; }
 .nb-tool { font-size: 12px; }
-.archive-summary .shoot-mode-review-label { font-size: 14px; }
 .archive-mode-details-btn { font-size: 13px; }

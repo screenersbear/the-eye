@@ -11,14 +11,16 @@
 :root {
   --head: "Kaisei Decol", "Klee One", Georgia, serif; /* headers, always in capitals */
   --font-head: var(--head);
-  --page-side: 20px;
+  --page-side: 16px; /* the side gutter (DESIGN.md 9) */
 }
 
 /* Headers: Kaisei Decol capitals, every one (the old per-screen rules set
    their own case, hence the !important). Names the user wrote (a shoot's,
    an entry's, a lighting setup's) stay in their handwriting, and so do the
-   team questions, which are questions. */
-:is(h1, h2, h3, h4, h5, h6, .brand-title, .log-week-heading, .log-section-label, .subsection-heading, .upcoming-subheading, .stats-page-title, .moodboard-label, .app-menu-header, .stats-region-heading, #shootModeReviewTitle, #mondayBriefTitle):not(#projectDetailTitle, #shootModeTitle, #journalViewTitle, .journal-entry-title, .shoot-mode-review-setup-name, .modal-title-jump-wrap) {
+   team questions, which are questions. Not in the parts already in the
+   round 2 look (the band, Overview, Shoots, the Archive, Reflections), whose
+   titles are Figtree's. */
+:is(h1, h2, h3, h4, h5, h6, .log-week-heading, .log-section-label, .subsection-heading, .upcoming-subheading, .stats-page-title, .moodboard-label, .app-menu-header, .stats-region-heading, #shootModeReviewTitle, #mondayBriefTitle):not(#projectDetailTitle, #shootModeTitle, #journalViewTitle, .journal-entry-title, .shoot-mode-review-setup-name, .modal-title-jump-wrap, .band *, #view-overview *, #view-shoots *, #view-archive *, #view-journal *, #view-stats *, .sm-dark *, .opt-sheet *, .log-card *, .shoot-band *, #shootFront *, #shootNext *, .guide-chrome *, #shootForm > .shoot-section-heading, #postShootContent > .shoot-section-heading) {
   font-family: var(--head) !important; font-weight: 500; text-transform: uppercase !important; letter-spacing: .08em !important; text-shadow: none;
 }
 :is(#appMenuOverlay, #sunMenuOverlay) .opt-sheet-head .app-menu-header { font-family: var(--head); font-weight: 500; text-transform: uppercase; letter-spacing: .08em; text-shadow: none; }
@@ -38,26 +40,19 @@
    in capitals, its entries as far apart. */
 #view-journal { margin: 0; padding: 0 0 28px; min-height: 0; background: none; }
 #view-journal::before { display: none; }
-#view-journal .topbar { top: 0; right: 0; }
 #view-journal .journal-toolbar { height: 48px; align-items: center; }
 #view-journal .journal-toolbar > button, #view-journal .journal-toolbar > #addJournalBtn { top: 0; padding-top: 0; }
 #journalList .log-week-heading { margin: 0; padding: 0; }
 :root[data-view="journal"] #nbScreenNum { background: none; }
 
-/* Stats: every breakdown on the page, one under another. */
-.stats-carousel { overflow: visible; height: auto !important; }
-.stats-track { display: block; transform: none !important; }
-.stats-page { width: auto; padding-bottom: 36px; }
-.stats-dots { display: none; }
-
 /* A shoot, Archive mode and Shoot mode: the screen, white, down to their bar. */
-#shootModalOverlay > .modal, #archiveModeOverlay > .modal, #shootModeOverlay > .modal.shoot-mode-modal {
+#shootModalOverlay > .modal, #shootModeOverlay > .modal.shoot-mode-modal {
   top: var(--nb-top); left: 0; right: 0; width: auto;
   height: calc(var(--nb-h) - var(--nb-top) - var(--nb-bar));
   padding: 8px max(var(--page-side), calc(50% - 280px)) 28px;
   border-radius: 0; box-shadow: none; background: #fff;
 }
-#shootModeOverlay, #archiveModeOverlay, #shootModalOverlay { background: #fff; }
+#shootModeOverlay, #shootModalOverlay { background: #fff; }
 /* A shoot's sections follow on, each heading clear of the one before. */
 #shootForm .shoot-section-heading:not(#basicInfoHeading) { margin-top: 36px; }
 
@@ -94,7 +89,3 @@
 .eye-cards-dots i { width: 7px; height: 7px; border-radius: 50%; background: rgba(49, 61, 69, .2); }
 .eye-cards-dots i.on { background: var(--text); }
 
-/* An eye left of OVERVIEW (user, 11-12): it hangs off the word, so the word
-   stays centred where every section's title sits. */
-#view-overview .brand-title { position: relative; }
-.brand-eye { position: absolute; right: calc(100% + 10px); top: 50%; width: 30px; height: 30px; margin-top: -14px; color: var(--text); pointer-events: none; }

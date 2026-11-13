@@ -9,7 +9,6 @@ window.EyeParts.addShootModeShotList = function addShootModeShotList(ed) {
   // mode rather than a screen — once switched on it survives closing the app and
   // comes straight back on the next launch, until it's explicitly ended.
   const SHOOT_MODE_KEY = 'dailies_shoot_mode_shoot_v1';
-  const SHOOT_MODE_ASKED_KEY = 'dailies_shoot_mode_asked_v1'; ed.SHOOT_MODE_ASKED_KEY = SHOOT_MODE_ASKED_KEY;
   const shootModeOverlay = document.getElementById('shootModeOverlay'); ed.shootModeOverlay = shootModeOverlay;
 
   function getShootModeShootId() {
@@ -31,6 +30,12 @@ window.EyeParts.addShootModeShotList = function addShootModeShotList(ed) {
   // a different interaction to relearn mid-shoot — just without the
   // checked-to-bottom sort, since watching the active list you're working
   // through reshuffle itself would be more disorienting than helpful here.
+  // "1 of 4" beside the list's name: how many are shot so far.
+  function renderShootModeShotCount(shoot) {
+    const shots = (shoot.shotList || []).filter(item => item && ed.hasText(item.text));
+    document.getElementById('shootModeShotCount').textContent = shots.length ? `${shots.filter(item => item.checked).length} of ${shots.length}` : '';
+  }
+
   function renderShootModeShots(shoot, focusIdx) {
     const list = document.getElementById('shootModeShotList');
     const shots = shoot.shotList || [];
@@ -44,6 +49,7 @@ window.EyeParts.addShootModeShotList = function addShootModeShotList(ed) {
       </div>
     `).join('');
     document.getElementById('shootModeShotsEmpty').hidden = shots.length !== 0;
+    renderShootModeShotCount(shoot);
 
     list.querySelectorAll('.star-shot').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -62,6 +68,7 @@ window.EyeParts.addShootModeShotList = function addShootModeShotList(ed) {
         shoot.shotList[idx].checked = cb.checked;
         ed.saveState();
         cb.closest('.shoot-mode-shot-row').classList.toggle('shot-checked', cb.checked);
+        renderShootModeShotCount(shoot);
         ed.renderAll();
         ed.renderShootModeClock();
       });
@@ -72,6 +79,7 @@ window.EyeParts.addShootModeShotList = function addShootModeShotList(ed) {
         shoot.shotList[Number(textarea.dataset.idx)].text = textarea.value;
         ed.autoSizeTextarea(textarea);
         ed.saveState();
+        renderShootModeShotCount(shoot);
       });
       textarea.addEventListener('keydown', (e) => {
         if (e.key !== 'Enter') return;

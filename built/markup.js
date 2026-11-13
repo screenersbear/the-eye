@@ -5,32 +5,24 @@
 
   <!-- ============ OVERVIEW ============ -->
   <section id="view-overview" class="view">
-    <div class="hero-band">
-      <header class="topbar">
-        <div class="brand-row">
-          <div class="brand-logo-wrap shine-sweep">
-            <img src="logo.png" alt="" class="brand-logo" />
-          </div>
-          <button type="button" class="app-menu-btn" id="shutBookBtn" aria-label="Shut the notebook"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="1"/><line x1="9" y1="3" x2="9" y2="21"/></svg></button>
-          <!-- The eye hangs left of the word (styles/plain-pages.css .brand-eye), which stays centred like every section's title. -->
-          <h1 class="brand-title"><svg class="brand-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 12s3.8-7.5 10.5-7.5S22.5 12 22.5 12s-3.8 7.5-10.5 7.5S1.5 12 1.5 12z"/><circle cx="12" cy="12" r="3.2"/></svg>Overview</h1>
-          <button type="button" class="app-menu-btn" id="notificationBellBtn" aria-label="Notifications">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-          </button>
-          <button type="button" class="app-menu-btn" id="appMenuBtn" aria-label="App menu">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
-          </button>
-        </div>
-      </header>
+    <!-- The band (styles/header-band.css): the title, its buttons (the notebooks button only in the suite), the rising mark and the label line (components/band.js writes the date). -->
+    <header class="band">
+      <h1 class="band-title">The Eye</h1>
+      <div class="band-btns"><button type="button" class="ring-btn band-books" id="shutBookBtn" aria-label="Back to your notebooks"><span><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="4.5" height="14" rx="1"/><rect x="9.5" y="3" width="4.5" height="16" rx="1"/><path d="M16 6.2l3.6-1 3 12.6-3.6 1z"/></svg></span></button><button type="button" class="ring-btn" id="newShootBtn" aria-label="New shoot"><span><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span></button><button type="button" class="ring-btn" id="notificationBellBtn" aria-label="Today's report"><span><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></span></button><button type="button" class="ring-btn" id="appMenuBtn" aria-label="Options"><span><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg></span></button></div>
+      <svg class="band-mark" viewBox="0 0 80 40" aria-hidden="true"><circle cx="40" cy="40" r="35" fill="none" stroke-width="10"/><circle cx="40" cy="40" r="13.3"/></svg>
+      <p class="band-line"><b>Overview</b><span class="band-rule"></span><span class="band-date"></span></p>
+    </header>
 
-      <button class="new-shoot-cta shine-sweep" id="newShootBtn">+ New Shoot</button>
+    <!-- The Today card (pages/overview/today-card.js): only what needs you now, in place of the pop-ups that opened on launch. Hidden when there's nothing. -->
+    <div class="today-card" id="todayCard" hidden>
+      <div class="today-card-head"><h2>Today</h2><button type="button" class="today-report-btn" id="todayReportBtn">Full report <svg viewBox="0 0 24 24" width="11" height="11" aria-hidden="true"><polyline points="9 5 16 12 9 19"/></svg></button></div>
+      <div id="todayCardItems"></div>
     </div>
 
-    <div class="stats-row" id="statsRow"></div>
-
-    <div class="section-block" id="todaySection" hidden>
-      <h2>Today <span id="todayCount"></span></h2>
-      <div id="todayShootsList" class="mini-list"></div>
+    <!-- The next shoot coming up, as a card (pages/overview/next-shoot.js). -->
+    <div class="section-block" id="nextShootSection" hidden>
+      <h2>Next shoot</h2>
+      <div id="nextShootCard"></div>
     </div>
 
     <div class="section-block" id="upcomingSection">
@@ -51,11 +43,18 @@
 
   <!-- ============ SHOOT LOG ============ -->
   <section id="view-shoots" class="view" hidden>
-    <header class="topbar">
-      <h1>Shoots</h1>
-      <button class="icon-btn" id="addShootBtn" aria-label="Add shoot">+</button>
+    <!-- The band (styles/header-band.css): the title, its buttons (the notebooks button only in the suite), the rising mark and the label line (components/band.js writes the date). -->
+    <header class="band">
+      <h1 class="band-title">Shoots</h1>
+      <div class="band-btns"><button type="button" class="ring-btn band-books" aria-label="Back to your notebooks"><span><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="4.5" height="14" rx="1"/><rect x="9.5" y="3" width="4.5" height="16" rx="1"/><path d="M16 6.2l3.6-1 3 12.6-3.6 1z"/></svg></span></button><button type="button" class="ring-btn" id="addShootBtn" aria-label="New shoot"><span><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span></button><button type="button" class="ring-btn band-options" aria-label="Options"><span><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg></span></button></div>
+      <svg class="band-mark" viewBox="0 0 80 40" aria-hidden="true"><circle cx="40" cy="40" r="35" fill="none" stroke-width="10"/><circle cx="40" cy="40" r="13.3"/></svg>
+      <p class="band-line"><b>The Eye</b><span class="band-rule"></span><span class="band-date"></span></p>
     </header>
-    <button type="button" class="filter-toggle" id="shootSortToggle">Sort: Status</button>
+    <!-- The list's head: the sort (a text button that opens its choices) and how many shoots there are. -->
+    <div class="list-head">
+      <button type="button" class="list-sort-btn" id="shootSortToggle">Sort: Status</button>
+      <span class="list-count" id="shootCount"></span>
+    </div>
     <div class="filters" id="shootSortOptions" hidden>
       <button type="button" class="chip active" data-sort="status">Status</button>
       <button type="button" class="chip" data-sort="shoot_date">Shoot date</button>
@@ -67,24 +66,36 @@
 
   <!-- ============ ARCHIVE ============ -->
   <section id="view-archive" class="view" hidden>
-    <header class="topbar">
-      <h1>Archive</h1>
+    <!-- The band (styles/header-band.css): the title, its buttons (the notebooks button only in the suite), the rising mark and the label line (components/band.js writes the date). -->
+    <header class="band">
+      <h1 class="band-title">Archive</h1>
+      <div class="band-btns"><button type="button" class="ring-btn band-books" aria-label="Back to your notebooks"><span><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="4.5" height="14" rx="1"/><rect x="9.5" y="3" width="4.5" height="16" rx="1"/><path d="M16 6.2l3.6-1 3 12.6-3.6 1z"/></svg></span></button><button type="button" class="ring-btn band-options" aria-label="Options"><span><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg></span></button></div>
+      <svg class="band-mark" viewBox="0 0 80 40" aria-hidden="true"><circle cx="40" cy="40" r="35" fill="none" stroke-width="10"/><circle cx="40" cy="40" r="13.3"/></svg>
+      <p class="band-line"><b>The Eye</b><span class="band-rule"></span><span class="band-date"></span></p>
     </header>
     <div class="archive-slideshow" id="archiveSlideshow">
       <p class="archive-slideshow-empty" id="archiveSlideshowEmpty" hidden>final images shown here</p>
     </div>
-    <button type="button" class="filter-toggle" id="archiveFilterToggle">Filter: All</button>
-    <div class="filters" id="archiveFilters" hidden></div>
+    <!-- Under the photo: the shoot it's from (pages/archive/archive.js). -->
+    <p class="archive-caption" id="archiveCaption" hidden><span id="archiveCaptionLabel"></span><span id="archiveCaptionName"></span></p>
+    <!-- Kept for the filter code; the chips under it are always out now, so it isn't shown (styles/archive-list.css). -->
+    <button type="button" class="filter-toggle" id="archiveFilterToggle" hidden>Filter: All</button>
+    <div class="filters" id="archiveFilters"></div>
     <div id="archiveList" class="card-list"></div>
     <p class="empty-state" id="archiveEmpty" hidden>No completed shoots yet.</p>
   </section>
 
   <!-- ============ JOURNAL ============ -->
   <section id="view-journal" class="view" hidden>
-    <header class="topbar">
-      <h1 id="journalTitle">Weekly</h1>
+    <!-- The band (styles/header-band.css): the title, its buttons (the notebooks button only in the suite), the rising mark and the label line (components/band.js writes the date). -->
+    <header class="band">
+      <h1 class="band-title" id="journalTitle">Reflections</h1>
+      <div class="band-btns"><button type="button" class="ring-btn band-books" aria-label="Back to your notebooks"><span><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="4.5" height="14" rx="1"/><rect x="9.5" y="3" width="4.5" height="16" rx="1"/><path d="M16 6.2l3.6-1 3 12.6-3.6 1z"/></svg></span></button><button type="button" class="ring-btn band-options" aria-label="Options"><span><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg></span></button></div>
+      <svg class="band-mark" viewBox="0 0 80 40" aria-hidden="true"><circle cx="40" cy="40" r="35" fill="none" stroke-width="10"/><circle cx="40" cy="40" r="13.3"/></svg>
+      <p class="band-line"><b>The Eye</b><span class="band-rule"></span><span class="band-date"></span></p>
     </header>
 
+    <p class="list-intro">Fills in on its own. Each week collects the lessons from the shoots you reflected on.</p>
     <div class="journal-toolbar">
       <button type="button" class="filter-toggle" id="journalTocBtn">Table of contents</button>
       <button type="button" class="filter-toggle" id="journalFilterToggle">Filter: All</button>
@@ -101,41 +112,50 @@
 
   <!-- ============ STATS ============ -->
   <section id="view-stats" class="view" hidden>
-    <header class="topbar">
-      <h1>Stats</h1>
+    <!-- The band (styles/header-band.css): the title, its buttons (the notebooks button only in the suite), the rising mark and the label line (components/band.js writes the date). -->
+    <header class="band">
+      <h1 class="band-title">Stats</h1>
+      <div class="band-btns"><button type="button" class="ring-btn band-books" aria-label="Back to your notebooks"><span><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="4.5" height="14" rx="1"/><rect x="9.5" y="3" width="4.5" height="16" rx="1"/><path d="M16 6.2l3.6-1 3 12.6-3.6 1z"/></svg></span></button><button type="button" class="ring-btn band-options" aria-label="Options"><span><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg></span></button></div>
+      <svg class="band-mark" viewBox="0 0 80 40" aria-hidden="true"><circle cx="40" cy="40" r="35" fill="none" stroke-width="10"/><circle cx="40" cy="40" r="13.3"/></svg>
+      <p class="band-line"><b>The Eye</b><span class="band-rule"></span><span class="band-date"></span></p>
     </header>
-    <button type="button" class="filter-toggle" id="statsYearFilterToggle">Filter: Year</button>
+    <!-- One chart per page (pages/stats/stats-pages.js): the year at the
+         left, which chart this is at the right; a swipe inside changes it. -->
+    <div class="stats-head">
+      <button type="button" class="stats-year-btn" id="statsYearFilterToggle">2026</button>
+      <p class="stats-count"><span id="statsPageCount"></span><span class="stats-dots" id="statsDots" aria-hidden="true"></span></p>
+    </div>
     <div class="filters" id="statsYearFilters" hidden></div>
-    <div id="statsFunFact" class="stats-fun-fact" hidden></div>
     <div class="stats-carousel" id="statsCarousel"></div>
-    <div class="stats-dots" id="statsDots"></div>
+    <p class="stats-swipe-hint" id="statsSwipeHint" hidden></p>
+    <div id="statsFunFact" class="stats-fun-fact" hidden></div>
   </section>
 
-  <!-- ============ TAB BAR ============ -->
+  <!-- ============ THE SECTION BAR (styles/tab-bar.css): a mark and a name for each section ============ -->
   <nav class="tabbar">
     <button class="tab active" data-view="overview">
       <span class="tab-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="19" x2="5" y2="13"/><line x1="12" y1="19" x2="12" y2="8"/><line x1="19" y1="19" x2="19" y2="4"/></svg>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle class="mk-line" cx="12" cy="12" r="10.5" fill="none" stroke-width="3"/><circle class="mk-b" cx="12" cy="12" r="4"/></svg>
       </span><span>Overview</span>
     </button>
     <button class="tab" data-view="shoots">
       <span class="tab-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13" r="3.5"/></svg>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path class="mk-a" d="M0 12A12 12 0 0 1 24 12Z"/><path class="mk-b" d="M0 12A12 12 0 0 0 24 12Z"/></svg>
       </span><span>Shoots</span>
     </button>
     <button class="tab" data-view="journal">
       <span class="tab-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg>
-      </span><span>Weekly</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle class="mk-a" cx="12" cy="12" r="12"/><path class="mk-b" d="M12 12L12 0A12 12 0 0 1 24 12Z"/></svg>
+      </span><span>Reflections</span>
     </button>
     <button class="tab" data-view="archive">
       <span class="tab-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9"/><line x1="10" y1="13" x2="14" y2="13"/></svg>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle class="mk-line" cx="12" cy="12" r="9" fill="none" stroke-width="6"/><circle class="mk-b" cx="12" cy="12" r="3"/></svg>
       </span><span>Archive</span>
     </button>
     <button class="tab" data-view="stats">
       <span class="tab-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3v9l7.79 4.5"/></svg>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle class="mk-b" cx="12" cy="12" r="12"/><path class="mk-a" d="M12 0H12A12 12 0 0 1 22.39 6H1.61A12 12 0 0 1 12 0ZM0.06 10.8H23.94A12 12 0 0 1 23.71 14.64H0.29A12 12 0 0 1 0.06 10.8ZM1.45 17.71H22.55A12 12 0 0 1 20.79 20.17H3.21A12 12 0 0 1 1.45 17.71ZM5.58 22.14H18.42A12 12 0 0 1 12 24H12A12 12 0 0 1 5.58 22.14Z"/></svg>
       </span><span>Stats</span>
     </button>
   </nav>
@@ -143,7 +163,7 @@
   <!-- The page's card edge. Fixed over the scrolling view: the hole in the
        middle is the page, so the window itself still does the scrolling. -->
   <div class="nb-board"><div class="nb-board-page" aria-hidden="true"></div><div class="nb-screen-foot"><button type="button" class="nb-page-step" id="nbScreenPrev" aria-label="Previous page"></button><span id="nbScreenNum"></span><button type="button" class="nb-page-step" id="nbScreenNext" aria-label="Next page"></button></div></div>
-  <nav class="nb-screen-tabs" aria-label="Sections of the notebook"><button type="button" class="y" data-view="overview"><span>Overview</span></button><button type="button" class="n" data-view="shoots"><span>Shoots</span></button><button type="button" class="y" data-view="journal"><span>Weekly</span></button><button type="button" class="n" data-view="archive"><span>Archive</span></button><button type="button" class="y" data-view="stats"><span>Stats</span></button></nav>
+  <nav class="nb-screen-tabs" aria-label="Sections of the notebook"><button type="button" class="y" data-view="overview"><span>Overview</span></button><button type="button" class="n" data-view="shoots"><span>Shoots</span></button><button type="button" class="y" data-view="journal"><span>Reflections</span></button><button type="button" class="n" data-view="archive"><span>Archive</span></button><button type="button" class="y" data-view="stats"><span>Stats</span></button></nav>
 </div>
 
 <!-- ============ THE NOTEBOOK ============ -->
@@ -219,7 +239,20 @@
       </div>
     </div>
     <button type="button" class="enter-shoot-mode-btn shine-sweep" id="enterShootModeBtn" hidden>shoot mode</button>
-    <button type="button" class="nb-corner-btn" id="enterArchiveModeBtn" hidden>archive mode</button>
+    <!-- The shoot's page in the round 2 look (styles/shoot-band.css, shoot-front.css). The compact band: Back, where it was opened from (or, on a part of the page, the shoot's name) and More. Then the front page (pages/shoot/shoot-front.js): the status as a tag that opens Change status, the name, when and where, the cards for what this stage needs, and The details: a row for each part of the form below, which opens that part on a page of its own. -->
+    <header class="band shoot-band">
+      <button type="button" class="ring-btn" id="shootBandBack" aria-label="Back"><span><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></span></button>
+      <p class="band-line shoot-band-line"><b id="shootBandPlace">Shoots</b><span class="band-rule"></span></p>
+      <button type="button" class="ring-btn" id="shootBandMore" aria-label="More"><span><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></span></button>
+    </header>
+    <div class="shoot-front" id="shootFront">
+      <button type="button" class="status-tag-btn" id="shootStatusTag" aria-haspopup="dialog"><span class="status-tag"><span id="shootStatusTagText">Prospect</span> <span aria-hidden="true">&#9662;</span></span></button>
+      <h1 class="shoot-front-title" id="shootFrontTitle"></h1>
+      <div class="shoot-front-when" id="shootFrontWhen"></div>
+      <div class="shoot-front-cards" id="shootFrontCards"></div>
+      <h2 class="front-title">The details</h2>
+      <div class="detail-rows" id="shootDetailRows"></div>
+    </div>
     <form id="shootForm">
       <svg class="folder-tab-deco tab-fill-yellow" viewBox="0 -90 400 120" preserveAspectRatio="none" aria-hidden="true"><path class="folder-tab-fill" d="M0,4 L192,4 L208,26 L400,26 L400,-90 L0,-90 Z"/><path class="folder-tab-line" d="M0,4 L192,4 L208,26 L400,26"/></svg>
       <h3 class="shoot-section-heading status-group-heading heading-yellow" id="basicInfoHeading">Basic Info</h3>
@@ -280,6 +313,9 @@
         <label>Shoot date
           <input type="date" id="shootDate" />
         </label>
+        <!-- Honest answers (pages/shoot/not-sure.js): shown while the date or
+             the place is empty, and counted as answered. -->
+        <button type="button" class="chip not-sure-chip" id="dateNotSetBtn" aria-pressed="false">Date not set</button>
         <label class="checkbox-row" id="multiDayRow"><input type="checkbox" id="shootMultiDay" /> <span id="multiDayLabel">Multi-day shoot</span></label>
         <label id="multiDayLastDayLabel" hidden>Last day
           <input type="date" id="shootLastDay" />
@@ -306,6 +342,7 @@
         <label>Location
           <button type="button" id="shootLocationBtn" class="location-field-btn">Tap to add location</button>
         </label>
+        <button type="button" class="chip not-sure-chip" id="locationNotSetBtn" aria-pressed="false">Location to be decided</button>
         <label>Location directions
           <textarea id="shootLocationDirections" rows="3" maxlength="1000" placeholder="What floor the studio is on, where to park, etc." readonly></textarea>
         </label>
@@ -315,11 +352,14 @@
       <h3 class="shoot-section-heading status-group-heading heading-yellow" id="teamHeading">Team</h3>
       <div id="teamBody">
         <p class="team-question">Requires team?</p>
-        <!-- Two named choices in the app's chip look (the picked one filled);
-             saved as teamRequired 'no'/'yes' — see setTeamRequiredChoice. -->
+        <!-- Named choices in the app's chip look (the picked one filled);
+             saved as teamRequired 'no'/'yes' (see setTeamRequiredChoice), or
+             "Not sure yet" in notSure (pages/shoot/not-sure.js). In the guide
+             they're cards, with the line under each name. -->
         <div class="team-yesno-row">
-          <button type="button" class="chip" id="teamRequiredNoBtn" aria-pressed="false">Just me</button>
-          <button type="button" class="chip" id="teamRequiredYesBtn" aria-pressed="false">With a team</button>
+          <button type="button" class="chip" id="teamRequiredNoBtn" aria-pressed="false"><span class="choice-name">Just me</span><span class="choice-sub">No team for this shoot.</span></button>
+          <button type="button" class="chip" id="teamRequiredYesBtn" aria-pressed="false"><span class="choice-name">With a team</span><span class="choice-sub">Add people now or later.</span></button>
+          <button type="button" class="chip" id="teamNotSureBtn" aria-pressed="false"><span class="choice-name">Not sure yet</span><span class="choice-sub">Counts as answered. It stays on Getting ready.</span></button>
         </div>
         <p class="field-hint team-finalized-note" id="teamFinalizedNote" hidden>Team finalized</p>
         <div id="teamDetailsBlock" hidden>
@@ -463,31 +503,36 @@
         <button type="button" class="complete-shoot-btn" id="completeShootBtn" hidden>Complete Shoot</button>
       </div>
 
-      <!-- New-shoot planning wizard. Inside the form on purpose: each slide
-           borrows the real field blocks from the page above (see
-           SHOOT_WIZARD_STEPS in app.js), so the form's autosave listeners and
-           #shootForm field styles keep working on them. Last in the form so
-           first-match lookups (the Save bar's .modal-actions) still find the
+      <!-- The new shoot guide, a page of its own over the shoot: seven
+           chapters, the same as the shoot's parts (pages/new-shoot/
+           guide-chapters.js). Inside the form on purpose: each chapter
+           borrows the real field blocks from the page above, so the form's
+           autosave listeners and #shootForm field styles keep working on
+           them. Last in the form so first-match lookups still find the
            page's own elements first. Every button is type="button": a
            submit-type one would be "clicked" by Enter in any text field. -->
       <div id="shootWizard" hidden>
         <div id="shootWizardCard" role="dialog" aria-modal="true" aria-labelledby="shootWizardTitle" tabindex="-1">
-          <div class="shoot-wizard-head">
-            <p class="mi-sub" id="shootWizardStep"></p>
-            <h2 id="shootWizardTitle"></h2>
-            <p id="shootWizardHint"></p>
+          <header class="band shoot-band guide-band">
+            <button type="button" class="ring-btn" id="shootWizardBackBtn" aria-label="Back"><span><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></span></button>
+            <p class="band-line shoot-band-line"><b id="shootWizardPlace">New shoot</b><span class="band-rule"></span></p>
+            <button type="button" class="guide-skip" id="shootWizardSkipBtn">Skip</button>
+          </header>
+          <div class="guide-scroll" id="shootWizardScroll">
+            <div class="guide-marks" id="shootWizardMarks" aria-hidden="true"></div>
+            <div class="shoot-wizard-head guide-chrome">
+              <p class="guide-chapter" id="shootWizardStep"></p>
+              <h2 id="shootWizardTitle"></h2>
+              <p id="shootWizardHint"></p>
+            </div>
+            <div id="shootWizardBody"></div>
+            <!-- A new shoot's first chapter only (see renderShootWizardChrome). -->
+            <button type="button" class="manage-link" id="shootWizardDontShowBtn" hidden>Don't show the guide again</button>
           </div>
-          <div id="shootWizardBody"></div>
-          <div class="shoot-wizard-actions">
-            <button type="button" class="secondary" id="shootWizardBackBtn">Back</button>
-            <button type="button" class="primary" id="shootWizardNextBtn">Next</button>
+          <div class="shoot-wizard-actions guide-bar guide-chrome">
+            <button type="button" class="outline-btn" id="shootWizardExitBtn">Done for now</button>
+            <button type="button" class="guide-next" id="shootWizardNextBtn">Next</button>
           </div>
-          <div class="shoot-tour-skip-row" id="shootWizardExitRow">
-            <button type="button" class="secondary journal-block-btn" id="shootWizardExitBtn">Skip to shoot page</button>
-          </div>
-          <!-- First slide only (see renderShootWizardChrome); the same small
-               underlined link look as the Visuals "Manage" link. -->
-          <button type="button" class="manage-link" id="shootWizardDontShowBtn" hidden>Don't show again</button>
         </div>
       </div>
     </form>
@@ -498,14 +543,12 @@
     <span id="nbPageFoot"></span>
     <button type="button" class="nb-page-step" id="nbPageNext" aria-label="Next page"></button>
   </div>
-  <div class="nb-screen-tabs nb-screen-tabs-shoot"><button type="button" class="y" data-view="overview"><span>Overview</span></button><button type="button" class="n" data-view="shoots"><span>Shoots</span></button><button type="button" class="y" data-view="journal"><span>Weekly</span></button><button type="button" class="n" data-view="archive"><span>Archive</span></button><button type="button" class="y" data-view="stats"><span>Stats</span></button></div>
-  <nav class="nb-shoot-bar" aria-label="This shoot">
-    <button type="button" class="nb-tool" id="nbBarBack" aria-label="Back"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
-    <button type="button" class="nb-tool" id="nbBarShootMode" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13" r="3.5"/></svg><span>Shoot mode</span></button>
-    <button type="button" class="nb-tool" id="nbBarComplete" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span>Complete</span></button>
-    <button type="button" class="nb-tool" id="nbBarUnarchive" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg><span>Unarchive</span></button>
-    <button type="button" class="nb-tool" id="nbBarMore" aria-label="More"><svg aria-hidden="true" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></button>
-  </nav>
+  <div class="nb-screen-tabs nb-screen-tabs-shoot"><button type="button" class="y" data-view="overview"><span>Overview</span></button><button type="button" class="n" data-view="shoots"><span>Shoots</span></button><button type="button" class="y" data-view="journal"><span>Reflections</span></button><button type="button" class="n" data-view="archive"><span>Archive</span></button><button type="button" class="y" data-view="stats"><span>Stats</span></button></div>
+  <!-- The next step (pages/shoot/next-step.js): always the next thing this shoot needs at its stage, with a line above it when that helps. -->
+  <div class="nb-shoot-bar shoot-next" id="shootNext">
+    <p class="shoot-next-hint" id="shootNextHint" hidden></p>
+    <button type="button" class="shoot-next-btn" id="shootNextBtn"></button>
+  </div>
 </div>
 
 <!-- What a shoot's More button offers. -->
@@ -533,6 +576,13 @@
   </div>
 </div>
 
+<div id="shootStatusSheetOverlay" class="modal-overlay options-overlay" hidden>
+  <div class="modal options-modal rounded-modal" role="dialog" aria-modal="true" aria-labelledby="shootStatusSheetTitle">
+    <h2 class="sheet-title" id="shootStatusSheetTitle">Change status</h2>
+    <div id="shootStatusSheetList"></div>
+    <button type="button" class="options-item options-cancel" id="shootStatusSheetCancelBtn">Cancel</button>
+  </div>
+</div>
 <!-- ============ LOCATION MODAL ============ -->
 <!-- ============ PHOTOGRAPHER INFORMATION ============ -->
 <!-- One editor serving two entry points: the first-run prompt (which shows the
@@ -1184,18 +1234,22 @@
   </div>
 </div>
 
-<!-- App options, laid out like ref's Options sheet (user, 11-11): a sheet
-     with its name and an X, then one labelled part for each setting. Only
-     what's this app's own is here; the book's color, stickers and where it
-     starts are on the sun. The ids are the ones app.js has always wired. -->
+<!-- Options (round 2, 08-options): a sheet with its name and an X, then
+     the notebook's colour and where it starts (look-choices.js), the
+     choices as two-way switches, and the rest as rows: You, Backups, Help.
+     The ids are the ones the app has always wired. -->
 <div id="appMenuOverlay" class="modal-overlay options-overlay app-menu-overlay" hidden>
   <div class="modal app-menu-modal opt-sheet" role="dialog" aria-modal="true" aria-labelledby="appMenuTitle">
     <header class="opt-sheet-head">
-      <h2 class="app-menu-header" id="appMenuTitle">App options</h2>
+      <h2 class="app-menu-header" id="appMenuTitle">Options</h2>
       <button type="button" class="icon-btn close-btn opt-close" id="appMenuCancelBtn" aria-label="Close"><svg class="x-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6L18 18M18 6L6 18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></button>
     </header>
     <div class="opt-sheet-body">
-      <span class="opt-label">Shoot display options</span>
+      <span class="opt-label">Notebook color</span>
+      <div id="appColorChoices"></div>
+      <span class="opt-label opt-gap">Start in</span>
+      <div id="appStartChoices"></div>
+      <span class="opt-label opt-gap">Show shoots by</span>
       <div class="opt-seg">
         <button type="button" id="displayModeTalentBtn">Talent name</button>
         <button type="button" id="displayModeTitleBtn">Shoot title</button>
@@ -1215,29 +1269,49 @@
         <button type="button" id="lookTagsOffBtn">Hidden</button>
         <button type="button" id="lookTagsOnBtn">On the shoot page</button>
       </div>
-      <!-- Inside Documenting Fictions only (app.js setupSunMenu): the color and where it starts. -->
-      <span class="opt-label opt-gap" id="appLookLabel" hidden>Notebook</span>
-      <button type="button" class="opt-wide" id="appLookBtn" hidden>App color and start</button>
-      <span class="opt-label opt-gap">Photographer</span>
-      <button type="button" class="opt-wide" id="photographerInfoBtn">Photographer information</button>
+      <span class="opt-label opt-gap">You</span>
+      <div class="opt-rows">
+        <button type="button" class="opt-row" id="photographerInfoBtn"><span class="opt-row-words"><span class="opt-row-name">Photographer information</span><span class="opt-row-sub">Prints first on every PDF</span></span><svg class="opt-chevron" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 5 16 12 9 19"/></svg></button>
+        <button type="button" class="opt-row" id="savedListsBtn"><span class="opt-row-words"><span class="opt-row-name">Saved lists</span><span class="opt-row-sub">Talent, team, locations, lighting, categories, frameworks</span></span><svg class="opt-chevron" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 5 16 12 9 19"/></svg></button>
+      </div>
       <span class="opt-label opt-gap">Backups</span>
-      <!-- "Last backup: …" is kept current by renderLastBackupHint in app.js. -->
-      <button type="button" class="opt-wide" id="exportDataBtn">Save a backup</button>
-      <span class="field-hint opt-hint" id="lastBackupHint">Last backup: never</span>
-      <button type="button" class="opt-wide" id="importDataBtn">Restore a backup</button>
-      <span class="opt-label opt-gap">Export</span>
-      <button type="button" class="opt-wide" id="exportPreviousShootsBtn">Export previous shoots</button>
-      <span class="opt-label opt-gap">Storage</span>
-      <button type="button" class="opt-wide" id="storageUsageBtn">Storage usage</button>
+      <!-- "Last backup: ..." is kept current by renderLastBackupHint (backup.js);
+           the storage used is read when the sheet opens (app-menu.js). -->
+      <div class="opt-rows">
+        <button type="button" class="opt-row" id="exportDataBtn"><span class="opt-row-words"><span class="opt-row-name">Save a backup</span><span class="opt-row-sub" id="lastBackupHint">Last backup: never</span></span><svg class="opt-chevron" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 5 16 12 9 19"/></svg></button>
+        <button type="button" class="opt-row" id="importDataBtn"><span class="opt-row-words"><span class="opt-row-name">Restore a backup</span></span><svg class="opt-chevron" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 5 16 12 9 19"/></svg></button>
+        <button type="button" class="opt-row" id="exportPreviousShootsBtn"><span class="opt-row-words"><span class="opt-row-name">Export previous shoots</span><span class="opt-row-sub">One PDF of archived months</span></span><svg class="opt-chevron" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 5 16 12 9 19"/></svg></button>
+        <button type="button" class="opt-row" id="storageUsageBtn"><span class="opt-row-words"><span class="opt-row-name">Storage usage</span><span class="opt-row-sub" id="storageUsageHint"></span></span><svg class="opt-chevron" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 5 16 12 9 19"/></svg></button>
+      </div>
       <span class="opt-label opt-gap">Help</span>
-      <button type="button" class="opt-wide" id="appTourBtn">How it works</button>
+      <div class="opt-rows">
+        <button type="button" class="opt-row" id="appTourBtn"><span class="opt-row-words"><span class="opt-row-name">How it works</span></span><svg class="opt-chevron" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 5 16 12 9 19"/></svg></button>
+      </div>
       <!-- The one that can't be undone stays last, away from the rest. -->
-      <span class="opt-label opt-gap">Shoot data</span>
-      <button type="button" class="opt-wide opt-danger" id="deleteAllShootDataBtn">Delete all shoot data</button>
+      <div class="opt-rows opt-rows-apart">
+        <button type="button" class="opt-row opt-danger" id="deleteAllShootDataBtn"><span class="opt-row-words"><span class="opt-row-name">Delete all shoot data</span></span><svg class="opt-chevron" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 5 16 12 9 19"/></svg></button>
+      </div>
     </div>
   </div>
 </div>
-
+<div id="savedListsOverlay" class="modal-overlay options-overlay app-menu-overlay" hidden>
+  <div class="modal app-menu-modal opt-sheet" role="dialog" aria-modal="true" aria-labelledby="savedListsTitle">
+    <header class="opt-sheet-head">
+      <h2 class="app-menu-header" id="savedListsTitle">Saved lists</h2>
+      <button type="button" class="icon-btn close-btn opt-close" id="savedListsCloseBtn" aria-label="Back"><svg class="x-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6L18 18M18 6L6 18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></button>
+    </header>
+    <div class="opt-sheet-body">
+      <div class="opt-rows" id="savedListsRows">
+        <button type="button" class="opt-row" data-list="talent"><span class="opt-row-words"><span class="opt-row-name">Talent</span><span class="opt-row-sub">Who you've photographed</span></span><svg class="opt-chevron" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 5 16 12 9 19"/></svg></button>
+        <button type="button" class="opt-row" data-list="team"><span class="opt-row-words"><span class="opt-row-name">Team</span><span class="opt-row-sub">Who you've worked with</span></span><svg class="opt-chevron" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 5 16 12 9 19"/></svg></button>
+        <button type="button" class="opt-row" data-list="locations"><span class="opt-row-words"><span class="opt-row-name">Locations</span><span class="opt-row-sub">Places you've shot</span></span><svg class="opt-chevron" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 5 16 12 9 19"/></svg></button>
+        <button type="button" class="opt-row" data-list="lighting"><span class="opt-row-words"><span class="opt-row-name">Lighting</span><span class="opt-row-sub">Setups you've used</span></span><svg class="opt-chevron" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 5 16 12 9 19"/></svg></button>
+        <button type="button" class="opt-row" data-list="categories"><span class="opt-row-words"><span class="opt-row-name">Categories</span><span class="opt-row-sub">Which kinds of shoot show as filters</span></span><svg class="opt-chevron" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 5 16 12 9 19"/></svg></button>
+        <button type="button" class="opt-row" data-list="frameworks"><span class="opt-row-words"><span class="opt-row-name">Frameworks</span><span class="opt-row-sub">Your own sets of tags</span></span><svg class="opt-chevron" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 5 16 12 9 19"/></svg></button>
+      </div>
+    </div>
+  </div>
+</div>
 <!-- ============ DELETE ALL SHOOT DATA CONFIRM ============ -->
 <div id="deleteAllConfirmOverlay" class="modal-overlay intro-overlay" hidden>
   <div class="modal intro-modal delete-all-confirm-modal" id="deleteAllConfirmModal">
@@ -1248,18 +1322,6 @@
       <button type="button" class="danger" id="deleteAllConfirmYesBtn">Yes, delete all shoots</button>
     </div>
     <button type="button" class="primary" id="deleteAllConfirmOkBtn" hidden>OK</button>
-  </div>
-</div>
-
-<!-- ============ LEAVE THE NEW SHOOT GUIDE? ============ -->
-<div id="shootWizardLeaveOverlay" class="modal-overlay intro-overlay" hidden>
-  <div class="modal intro-modal">
-    <h2>Leave the guide?</h2>
-    <p>Everything you've filled in so far is already on the shoot page, and you can keep adding to it there.</p>
-    <div class="modal-actions" id="shootWizardLeaveActions">
-      <button type="button" class="primary" id="shootWizardLeaveStayBtn">Keep going</button>
-      <button type="button" class="secondary" id="shootWizardLeaveGoBtn">Go to shoot page</button>
-    </div>
   </div>
 </div>
 
@@ -1468,7 +1530,7 @@
 
 <!-- ============ TAB INTRO ============ -->
 <!-- Shoot mode: a stripped-back, full-screen working view for the day of -->
-<div id="shootModeOverlay" class="modal-overlay shoot-mode-overlay" hidden>
+<div id="shootModeOverlay" class="modal-overlay shoot-mode-overlay sm-dark" hidden>
   <!-- A page of the notebook, like Archive mode's, with the notebook around it
        dimmed so it reads as a page of its own (see breakShootModePages in
        app.js), in three parts that each start a fresh page: last time's
@@ -1480,48 +1542,55 @@
     <div class="shoot-mode-sheet" id="shootModeSheet" data-part="main">
     <div class="shoot-mode-header">
       <div class="shoot-mode-heading-wrap">
-        <p class="shoot-mode-eyebrow">Shoot mode</p>
+        <div class="shoot-mode-top">
+          <p class="shoot-mode-eyebrow">Shoot mode</p>
+          <button type="button" class="shoot-mode-exit" id="shootModeExitBtn" aria-label="Exit shoot mode">Exit</button>
+        </div>
         <h2 id="shootModeTitle"></h2>
-        <!-- The shoot's clock (see renderShootModeClock in app.js): the wrap
-             time as Archive mode's header pill, with the time left beside
-             it. The time input lies invisibly over the pill, so a tap opens
-             the phone's own time picker to move the wrap when the shoot
-             runs long. Under it, golden hour when it falls in the shoot, and
-             the must-haves still to get once time's short. -->
+        <!-- The shoot's clock (pages/shoot-mode/clock.js): how long is left
+             as the big figure, the wrap time at the right. The time input
+             lies invisibly over the wrap time, so a tap opens the phone's
+             own time picker to move the wrap when the shoot runs long.
+             Under it, golden hour when it falls in the shoot, and the
+             must-haves still to get once time's short. -->
         <div class="shoot-mode-clock">
+          <p class="shoot-mode-left" id="shootModeLeft" hidden><span class="shoot-mode-left-figure" id="shootModeTimeLeft"></span><span class="shoot-mode-clock-label" id="shootModeLeftLabel"></span></p>
           <span class="shoot-mode-wrap">
-            <span class="archive-mode-details-btn shoot-mode-wrap-pill" id="shootModeWrapPill"></span>
+            <span class="shoot-mode-wrap-pill" id="shootModeWrapPill"></span>
+            <span class="shoot-mode-clock-label" id="shootModeWrapLabel"></span>
             <input type="time" class="shoot-mode-wrap-input" id="shootModeWrapInput" aria-label="Wrap time" />
           </span>
-          <span class="shoot-mode-clock-text" id="shootModeTimeLeft"></span>
         </div>
-        <p class="shoot-mode-clock-text shoot-mode-clock-line" id="shootModeGoldenHour" hidden></p>
-        <p class="shoot-mode-clock-text shoot-mode-clock-line shoot-mode-must-haves" id="shootModeMustHaves" hidden></p>
+        <div class="shoot-mode-chips">
+          <p class="shoot-mode-chip shoot-mode-clock-line" id="shootModeGoldenHour" hidden></p>
+          <p class="shoot-mode-chip shoot-mode-clock-line shoot-mode-must-haves" id="shootModeMustHaves" hidden></p>
+        </div>
+        <!-- Which of the three pages this is (pages/shoot-mode/pages.js). -->
+        <div class="shoot-mode-dots" id="shootModeDots" aria-hidden="true"></div>
       </div>
-      <button type="button" class="icon-btn close-btn" id="shootModeExitBtn" aria-label="Exit shoot mode"><svg class="x-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6L18 18M18 6L6 18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></button>
     </div>
     <div class="shoot-mode-body shoot-mode-page-main" id="shootModeMain">
       <!-- What last time's shoot of this kind taught (see
            showShootModeLastTime in app.js), the same "Last time" line the
            shoot page's guide shows. -->
       <p class="field-hint shoot-mode-last-time" id="shootModeLastTime" hidden></p>
-      <h3 class="shoot-mode-section-heading heading-yellow">Quick review</h3>
+      <h3 class="shoot-mode-section-heading">Quick review</h3>
       <div class="shoot-mode-quick-review">
         <button type="button" class="shoot-mode-quick-review-btn" id="shootModeReviewDirectionBtn">Direction</button>
-        <button type="button" class="shoot-mode-quick-review-btn" id="shootModeReviewLightingBtn">Lighting setups</button>
+        <button type="button" class="shoot-mode-quick-review-btn" id="shootModeReviewLightingBtn">Lighting</button>
         <!-- Not a review like the two beside it: a random "try this" card
              (see Wild card in app.js). Same pill, so the row reads as one
              set of quick taps. -->
         <button type="button" class="shoot-mode-quick-review-btn" id="shootModeWildCardBtn">Wild card</button>
       </div>
-      <h3 class="shoot-mode-section-heading heading-navy" id="shootModeShotListHeading">Shot list</h3>
+      <h3 class="shoot-mode-section-heading shoot-mode-list-head" id="shootModeShotListHeading">Shot list <span id="shootModeShotCount"></span></h3>
       <div id="shootModeShotList" class="shoot-mode-shots"></div>
       <p class="shoot-mode-empty" id="shootModeShotsEmpty" hidden>No shots on the list for this shoot.</p>
       <button type="button" id="shootModeAddShotBtn" class="primary small-btn shoot-mode-add-shot-btn">+ Add shot</button>
     </div>
     <div class="shoot-mode-body shoot-mode-page-board" id="shootModeBoardPage">
       <div class="shoot-mode-moodboard-block" id="shootModeMoodboardBlock">
-      <h3 class="shoot-mode-section-heading heading-yellow" id="shootModeMoodboardHeading">Mood board</h3>
+      <h3 class="shoot-mode-section-heading" id="shootModeMoodboardHeading">Mood board</h3>
       <div id="shootModeMoodboard" class="moodboard-grid"></div>
       <p class="shoot-mode-empty" id="shootModeMoodEmpty" hidden>No mood board images for this shoot.</p>
       <!-- Same as the shoot page's own "+ Add photos", and the same look as
@@ -1543,10 +1612,10 @@
     <span id="shootModeFoot"></span>
     <button type="button" class="nb-page-step" id="shootModeNext" aria-label="Next page"></button>
   </div>
-    <!-- "Exit" leaves Shoot mode and changes nothing (same as the X up top);
-         "Done shooting" wraps up the shoot. One bar, split in two. -->
+    <!-- A wild card (the same as Quick review's), and "Done shooting",
+         which wraps up the shoot. One bar, split in two. Exit is up top. -->
     <div class="shoot-mode-bottom-bar">
-      <button type="button" class="shoot-mode-bottom-cta shoot-mode-bottom-cta-secondary" id="shootModeLeaveBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>Exit</button>
+      <button type="button" class="shoot-mode-bottom-cta shoot-mode-bottom-cta-secondary" id="shootModeWildCardBarBtn"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor"/></svg>Wild card</button>
       <button type="button" class="primary shoot-mode-bottom-cta" id="shootModeDoneBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Done shooting</button>
     </div>
 </div>
@@ -1556,7 +1625,7 @@
      there. Every field is tap-to-edit (see openExpandField's config-object
      form), writing straight to the shoot, same as everything else in
      Shoot Mode. -->
-<div id="shootModeReviewOverlay" class="modal-overlay shoot-mode-overlay" hidden>
+<div id="shootModeReviewOverlay" class="modal-overlay shoot-mode-overlay sm-dark" hidden>
   <div class="modal shoot-mode-modal shoot-mode-review-modal">
     <div class="shoot-mode-header">
       <div class="shoot-mode-heading-wrap">
@@ -1574,7 +1643,7 @@
      rounded, ink-outlined card (and its yellow eyebrow), but only as tall as
      the card itself, with Shoot mode's own split bar: "Another" draws the
      next one in place, OK puts it away. -->
-<div id="shootModeWildCardOverlay" class="modal-overlay shoot-mode-overlay" hidden>
+<div id="shootModeWildCardOverlay" class="modal-overlay shoot-mode-overlay sm-dark" hidden>
   <div class="modal shoot-mode-modal shoot-mode-review-modal shoot-mode-wild-card-modal">
     <div class="shoot-mode-header shoot-mode-wild-card-header">
       <div class="shoot-mode-heading-wrap">
@@ -1599,36 +1668,6 @@
   </div>
 </div>
 
-<div id="shootModePromptOverlay" class="modal-overlay intro-overlay" hidden>
-  <div class="modal intro-modal">
-    <h2>Shoot day</h2>
-    <p id="shootModePromptText"></p>
-    <button type="button" class="primary" id="shootModeStartBtn">start shoot mode</button>
-    <button type="button" class="secondary shoot-mode-skip" id="shootModeSkipBtn">not now</button>
-  </div>
-</div>
-
-<!-- Archive mode: a condensed, read-only report of a completed shoot — the
-     same working-view shape as Shoot mode, but every field is plain typed
-     text instead of an editable one, since nothing here is meant to change. -->
-<div id="archiveModeOverlay" class="modal-overlay" hidden>
-  <div class="nb-chapter-board" aria-hidden="true"></div>
-  <div class="modal">
-    <p class="nb-run" id="archiveModeTitle"></p>
-    <button type="button" class="nb-corner-btn" id="archiveModeShootDetailsBtn">shoot details</button>
-    <div id="archiveModeBody" class="archive-summary"></div>
-  </div>
-  <div class="nb-turn-layer" aria-hidden="true"></div>
-  <div class="nb-page-foot">
-    <button type="button" class="nb-page-step" id="archiveModePrev" aria-label="Previous page"></button>
-    <span id="archiveModeFoot"></span>
-    <button type="button" class="nb-page-step" id="archiveModeNext" aria-label="Next page"></button>
-  </div>
-  <div class="nb-screen-tabs nb-screen-tabs-shoot"><button type="button" class="y" data-view="overview"><span>Overview</span></button><button type="button" class="n" data-view="shoots"><span>Shoots</span></button><button type="button" class="y" data-view="journal"><span>Weekly</span></button><button type="button" class="n" data-view="archive"><span>Archive</span></button><button type="button" class="y" data-view="stats"><span>Stats</span></button></div>
-  <nav class="nb-shoot-bar" aria-label="This shoot">
-    <button type="button" class="nb-tool" id="archiveModeExitBtn" aria-label="Back"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
-  </nav>
-</div>
 
 <div id="tabIntroOverlay" class="modal-overlay intro-overlay" hidden>
   <div class="modal intro-modal">
@@ -1671,17 +1710,6 @@
       <button type="button" class="secondary" id="completeShootPromptCancelBtn">Cancel</button>
       <button type="button" class="primary" id="completeShootPromptConfirmBtn">Complete shoot</button>
     </div>
-  </div>
-</div>
-
-<!-- ============ DAY-AFTER SHOOT CHECK-IN ============ -->
-<div id="dayAfterPromptOverlay" class="modal-overlay intro-overlay" hidden>
-  <div class="modal intro-modal">
-    <h2>Shoot check-in</h2>
-    <p id="dayAfterPromptText"></p>
-    <!-- A row per shoot with "Postponed" / "Shot it" (see checkDayAfterPrompt). -->
-    <div id="dayAfterList" class="day-after-list"></div>
-    <button type="button" class="secondary" id="dayAfterOkBtn">Not yet</button>
   </div>
 </div>
 

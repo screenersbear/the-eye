@@ -4350,6 +4350,234 @@ window.EyeParts.addDates = function addDates(ed) {
 };
 ;
 
+// ---- components/row-words.js ----
+// The words on a shoot's row, the Next shoot card and the Today card: a date
+// as "Sat 28 Nov", how far away a day is, a deadline gone by, and the line
+// under a shoot's name. Plain words only (no page, no saved data), so they're
+// unit tested (tests/unit/the-eye/row-words.test.mjs). The rows write them in
+// capitals with CSS, so a screen reader still reads them as words.
+// (Loaded before app.js, which runs it in its turn.)
+window.EyeParts = window.EyeParts || {};
+window.EyeParts.addRowWords = function addRowWords(ed) {
+  Object.assign(ed, { daysBetween, rowDate, rowDateRange, daysAwayTag, setForWords, dueWords, overdueWords, pastDeadlineWords, metaLine });
+  const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  // "2026-11-28" as a local midnight.
+  function day(dateStr) {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  }
+
+  // Whole days from one date to another: 1 for tomorrow, -1 for yesterday.
+  // Rounded, so a clock change in between doesn't make it 0.96 of a day.
+  function daysBetween(from, to) {
+    return Math.round((day(to) - day(from)) / 86400000);
+  }
+
+  const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
+  // "Sat 28 Nov" with the weekday, "28 Nov" without; the year is added
+  // ("14 Aug 2025") when it isn't today's year.
+  function rowDate(dateStr, today, withWeekday) {
+    const d = day(dateStr);
+    const year = dateStr.slice(0, 4) === today.slice(0, 4) ? '' : ` ${d.getFullYear()}`;
+    return `${withWeekday ? `${WEEKDAYS[d.getDay()]} ` : ''}${d.getDate()} ${MONTHS[d.getMonth()]}${year}`;
+  }
+
+  // The days a project spans: "9 to 11 Dec", "28 Nov to 2 Dec", and both
+  // years spelled out when they differ. One day is just that day.
+  function rowDateRange(start, end, today) {
+    if (start === end) return rowDate(start, today, false);
+    const a = day(start);
+    // Each end against the other: the years differ, so each gets its own.
+    if (start.slice(0, 4) !== end.slice(0, 4)) return `${rowDate(start, end, false)} to ${rowDate(end, start, false)}`;
+    const startWords = start.slice(5, 7) === end.slice(5, 7) ? `${a.getDate()}` : rowDate(start, end, false);
+    return `${startWords} to ${rowDate(end, today, false)}`;
+  }
+
+  // The tag on the Next shoot card: "Today", "Tomorrow", "In 8 days".
+  // Nothing for a day already gone.
+  function daysAwayTag(dateStr, today) {
+    const n = daysBetween(today, dateStr);
+    if (n < 0) return '';
+    if (n === 0) return 'Today';
+    if (n === 1) return 'Tomorrow';
+    return `In ${n} days`;
+  }
+
+  // When a shoot was set for, from the Today card's "It was set for …":
+  // "yesterday", a weekday within the last week, else its date.
+  function setForWords(dateStr, today) {
+    const n = daysBetween(dateStr, today);
+    if (n === 1) return 'yesterday';
+    if (n >= 2 && n <= 6) return WEEKDAY_NAMES[day(dateStr).getDay()];
+    return rowDate(dateStr, today, false);
+  }
+
+  // A deadline still ahead: "Due today", "Due Fri 20 Nov" within the week,
+  // "Due 4 Dec" further off.
+  function dueWords(deadline, today) {
+    const n = daysBetween(today, deadline);
+    if (n === 0) return 'Due today';
+    return `Due ${rowDate(deadline, today, n >= 1 && n <= 7)}`;
+  }
+
+  // A deadline gone by, on a row: "Overdue by 3 days".
+  function overdueWords(deadline, today) {
+    return `Overdue by ${plural(daysBetween(deadline, today), 'day')}`;
+  }
+
+  // The same on the Today card: "3 days past" (its deadline).
+  function pastDeadlineWords(deadline, today) {
+    return `${plural(daysBetween(deadline, today), 'day')} past`;
+  }
+
+  // The line under a name: its parts that have something, with commas.
+  function metaLine(parts) {
+    return parts.filter(Boolean).join(', ');
+  }
+};
+;
+
+// ---- components/shoot-stage.js ----
+// What a shoot still needs at its stage: the seven parts the guide asks
+// about (the Getting ready card), the words for them, the next step button
+// at the foot of its page, and when it's complete. A shoot and a few counts
+// in, plain words out (no page, no saved data), so it's unit tested
+// (tests/unit/the-eye/shoot-stage.test.mjs).
+// (Loaded before app.js, which runs it in its turn.)
+window.EyeParts = window.EyeParts || {};
+window.EyeParts.addShootStage = function addShootStage(ed) {
+  // The seven parts, in the guide's order. `page` is the part of the shoot
+  // page that holds it; `inWords` and `leftWords` go in the card's sentence.
+  const SETUP_CHAPTERS = [
+    { key: 'basics', label: 'Basics', inWords: 'basics', leftWords: 'the basics', add: 'Add the basics', page: 'basicInfoHeading' },
+    { key: 'logistics', label: 'Logistics', inWords: 'logistics', leftWords: 'logistics', add: 'Add the logistics', page: 'logisticsHeading' },
+    { key: 'team', label: 'Team', inWords: 'team', leftWords: 'the team', add: 'Add the team', page: 'teamHeading' },
+    { key: 'direction', label: 'Direction', inWords: 'direction', leftWords: 'direction', add: 'Add the direction', page: 'directionHeading' },
+    { key: 'visuals', label: 'Visuals', inWords: 'visuals', leftWords: 'visuals', add: 'Add the visuals', page: 'visualsHeading' },
+    { key: 'shotList', label: 'Shot list', inWords: 'shot list', leftWords: 'shot list', add: 'Add the shot list', page: 'shotListHeading' },
+    { key: 'deadline', label: 'Deadline', inWords: 'deadline', leftWords: 'a deadline', add: 'Add a deadline', page: 'logisticsHeading' },
+  ];
+  // The honest answers the guide takes ("Date not set", "Location to be
+  // decided", "Not sure yet" about the team), saved on the shoot in
+  // `notSure`. Each counts as answered until the real thing is filled in.
+  const NOT_SURE = ['date', 'location', 'team'];
+  Object.assign(ed, { SETUP_CHAPTERS, NOT_SURE, setupChapters, setupWords, notSureWords, stillNotSure, listWords, hasReflection, nextStep, readyToComplete });
+
+  const has = v => typeof v === 'string' && v.trim() !== '';
+  const hasPlace = loc => !!loc && ['name', 'street', 'city'].some(k => has(loc[k]));
+  const DIRECTION_FIELDS = ['shootGoals', 'premise', 'character', 'worldNotes', 'elevatorPitch', 'deliverables'];
+  const notSure = (s, key) => Array.isArray(s.notSure) && s.notSure.includes(key);
+  const hasTeam = s => s.teamRequired === 'no' || (s.teamMembers || []).length > 0;
+  // Filled in for real, so "not sure" no longer applies.
+  const ANSWERED = {
+    date: s => has(s.date),
+    location: s => hasPlace(s.location),
+    team: s => hasTeam(s) || s.teamRequired === 'yes',
+  };
+
+  // Whether each part is in. `counts` holds what lives outside the shoot:
+  // { moodboard: photos, boards: boards from Ref }.
+  const DONE = {
+    basics: s => has(s.title) || (Array.isArray(s.talents) && s.talents.some(t => has(t.name))),
+    logistics: s => (has(s.date) || notSure(s, 'date')) && (hasPlace(s.location) || notSure(s, 'location')),
+    team: s => hasTeam(s) || notSure(s, 'team'),
+    direction: s => DIRECTION_FIELDS.some(k => has(s[k])),
+    visuals: (s, counts) => counts.moodboard > 0 || counts.boards > 0
+      || (s.references || []).length > 0 || (s.lightingSetups || []).length > 0,
+    shotList: s => Array.isArray(s.shotList) && s.shotList.some(item => has(item.text)),
+    deadline: s => has(s.deadline),
+  };
+
+  function setupChapters(shoot, counts) {
+    return SETUP_CHAPTERS.map(c => ({ ...c, done: DONE[c.key](shoot, counts || {}) }));
+  }
+
+  // "a, b and c".
+  function listWords(words) {
+    if (words.length < 2) return words[0] || '';
+    return `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}`;
+  }
+  const capital = s => s.charAt(0).toUpperCase() + s.slice(1);
+
+  // "Basics, logistics and team are in. Still to add: direction, visuals,
+  // shot list and a deadline."
+  function setupWords(chapters) {
+    const done = chapters.filter(c => c.done).map(c => c.inWords);
+    const left = chapters.filter(c => !c.done).map(c => c.leftWords);
+    const parts = [];
+    if (done.length) parts.push(`${capital(listWords(done))} ${done.length === 1 && done[0] !== 'basics' && done[0] !== 'logistics' ? 'is' : 'are'} in.`);
+    if (left.length) parts.push(`Still to add: ${listWords(left)}.`);
+    return parts.join(' ');
+  }
+
+  // The honest answers that still stand: once the real thing is in, it goes.
+  function stillNotSure(shoot) {
+    return NOT_SURE.filter(key => notSure(shoot, key) && !ANSWERED[key](shoot));
+  }
+
+  // "Not sure yet: the date and the team." (what's still unsure, for the
+  // Getting ready card, where it stays until it's filled in).
+  function notSureWords(shoot) {
+    const left = stillNotSure(shoot);
+    return left.length ? `Not sure yet: ${listWords(left.map(key => `the ${key}`))}.` : '';
+  }
+
+  function hasReflection(shoot) {
+    return ['whatWentRight', 'couldBeBetter', 'lessonsLearned'].some(k => has(shoot[k]));
+  }
+
+  // The one thing a shoot needs next, for the button at the foot of its
+  // page: { key, label, hint, to, chapter }, or null when there's nothing.
+  // `counts` adds { finalImages, video } to setupChapters' counts.
+  //   chapter      the first part still to add (its key in `chapter`)
+  //   status       move it on to `to`
+  //   shootMode, reflect, finalImages, complete, unarchive, date
+  function nextStep(shoot, counts) {
+    const c = counts || {};
+    if (shoot.archived) return { key: 'unarchive', label: 'Unarchive', hint: '' };
+    const reflected = hasReflection(shoot);
+    const needsImages = !c.video && !(c.finalImages > 0);
+    switch (shoot.status) {
+      case 'prospect':
+      case 'planning': {
+        const left = setupChapters(shoot, c).filter(ch => !ch.done);
+        if (!left.length) return { key: 'status', to: 'waiting_to_shoot', label: 'Mark shoot ready', hint: '' };
+        return { key: 'chapter', chapter: left[0].key, label: left[0].add, hint: left.length === 1 ? 'Next step, then the shoot is ready' : '' };
+      }
+      case 'waiting_to_shoot':
+        return { key: 'shootMode', label: 'Shoot mode', hint: '' };
+      case 'captured':
+        if (!reflected) return { key: 'reflect', label: 'Reflect now', hint: '' };
+        return c.video
+          ? { key: 'status', to: 'rough_cut', label: 'Start the rough cut', hint: '' }
+          : { key: 'status', to: 'waiting_for_selects', label: 'Mark proofs sent', hint: '' };
+      case 'delivered':
+        if (!reflected) return { key: 'reflect', label: 'Reflect now', hint: needsImages ? '' : 'Then the shoot is complete' };
+        if (needsImages) return { key: 'finalImages', label: 'Add final images', hint: 'Then the shoot is complete' };
+        return { key: 'complete', label: 'Complete', hint: '' };
+      case 'rescheduled':
+        return { key: 'date', label: 'Set a new date', hint: '' };
+      case 'canceled':
+        return null;
+      default: // in the edit: waiting for selects, editing, and video's steps
+        if (needsImages) return { key: 'finalImages', label: 'Add final images', hint: '' };
+        return { key: 'status', to: 'delivered', label: 'Mark delivered', hint: '' };
+    }
+  }
+
+  // Complete on its own: delivered, with its final images (video has none)
+  // and its reflection, and not in the archive already.
+  function readyToComplete(shoot, counts) {
+    const c = counts || {};
+    return shoot.status === 'delivered' && !shoot.archived && hasReflection(shoot) && (!!c.video || c.finalImages > 0);
+  }
+};
+;
+
 // ---- components/helpers.js ----
 // Small helpers: ids, shuffling, sort keys, escaping, and what a shoot is called and still needs.
 // (Loaded before app.js, which runs it in its turn.)
@@ -5178,16 +5406,16 @@ window.EyeParts.addCategories = function addCategories(ed) {
     localStorage.setItem(CATEGORY_VISIBILITY_KEY, JSON.stringify(categoryVisibility));
   }
 
-  // Tonally matched to the app's navy/mango-yellow brand pair: same
-  // mid-to-dark, non-neon register, cycled per pie in this fixed order.
+  // The chart slices, in this order (DESIGN.md 4.3, the mark colours): the
+  // app's navy and mango first, then the board's brights.
   const PIE_COLORS = [
-    '#ffd103', // mango yellow (accent)
     '#313d45', // navy (text)
-    '#c8683d', // terracotta
-    '#5b7c99', // dusty blue
-    '#5c8a72', // sage green
-    '#8a5a72', // plum
-    '#d9a441', // warm sand
+    '#ffd103', // mango yellow (accent)
+    '#0596ff', // sky
+    '#2c5e3c', // forest
+    '#f7a52b', // amber
+    '#a1062a', // crimson
+    '#e2e600', // chartreuse
     '#7d8a92', // slate
   ]; ed.PIE_COLORS = PIE_COLORS;
 
@@ -5231,7 +5459,7 @@ window.EyeParts.addDefaultState = function addDefaultState(ed) {
     ];
   }
 
-  const APP_COLORS = [['mango', 'Mango'], ['orange', 'Orange'], ['berry', 'Berry'], ['fern', 'Fern'], ['ocean', 'Ocean'], ['ink', 'Black']]; ed.APP_COLORS = APP_COLORS;
+  const APP_COLORS = [['mango', 'Mango'], ['orange', 'Orange'], ['berry', 'Berry'], ['fern', 'Fern'], ['ocean', 'Ocean'], ['leaf', 'Leaf'], ['ink', 'Black']]; ed.APP_COLORS = APP_COLORS;
   const APP_COLOR_KEY = 'df-app-color'; // also read in index.html, before the first paint
 
   function firstAppColor() {
@@ -5668,12 +5896,14 @@ window.EyeParts.addSave = function addSave(ed) {
 ;
 
 // ---- components/shoot-row.js ----
-// A shoot as a row in a list, and the compact row.
+// A shoot as a row in a list (its cover, name, one line of status and dates,
+// and the flags for what it still needs), and the compact row.
 // (Loaded before app.js, which runs it in its turn.)
 window.EyeParts = window.EyeParts || {};
 window.EyeParts.addShootRow = function addShootRow(ed) {
-  Object.assign(ed, { shootThumbHtml, renderShootRow, renderCompactShootRow });
+  Object.assign(ed, { shootThumbHtml, shootDateWords, shootFlagWords, flagsHtml, moreBtnHtml, renderShootRow, renderCompactShootRow });
   const SHOOT_THUMB_EMPTY_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13" r="3.5"/></svg>`;
+  const MORE_SVG = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>';
 
   function shootThumbHtml(s) {
     return s.projectPhoto
@@ -5681,101 +5911,96 @@ window.EyeParts.addShootRow = function addShootRow(ed) {
       : `<div class="shoot-thumb shoot-thumb-empty">${SHOOT_THUMB_EMPTY_SVG}</div>`;
   }
 
-  function renderShootRow(container, s, opts) {
-    // Lets a section suppress the whole badge outright — e.g. Overview's
-    // Proofs pending and Upcoming deadlines sections are each already one
-    // homogeneous category, so re-stating "Pending: Proofs" or the status
-    // on every row there is redundant. Today/Upcoming shoots mix several
-    // statuses together, so the badge still earns its place there.
-    const showBadge = !opts || opts.showBadge !== false;
-    // Archive opts this in: a delivered shoot doesn't need its own status
-    // re-stated there (it's implied by being in Archive), but if it's
-    // missing final images that's worth flagging — resolved async below
-    // since it requires an IndexedDB lookup, unlike every other badge part.
-    const checkFinalImages = !!(showBadge && opts && opts.checkFinalImages && s.status === 'delivered' && !ed.isVideoShoot(s));
-    const statusLabel = (showBadge && opts && opts.showStatus && !checkFinalImages) ? (ed.STATUS_LABELS[s.status] || '') : '';
-    const pendingLabels = (showBadge && opts && opts.showPending) ? ed.shootPendingLabels(s) : [];
-    const pendingText = pendingLabels.length ? `Pending: ${ed.escapeHtml(pendingLabels.join(', '))}` : '';
-    // Proofs are only "pending" for the captured step itself — once a shoot
-    // moves to waiting_for_selects, proofs have already gone out. Video has
-    // no proofs step at all (after Captured it goes to Rough cut).
-    const proofsPendingText = (showBadge && s.status === 'captured' && !ed.isVideoShoot(s)) ? 'Pending: Proofs' : '';
-    // Once a shoot's captured there's a reflection worth writing eventually —
-    // flag it if that's never happened yet, same idea as missing final images.
-    // Applies on the Shoots page too, not just Archive, now that reflections
-    // are expected any time from captured onward rather than only once archived.
+  // The shoot's day, on its row: "Sat 28 Nov" ahead, "Today", "Shot 10 Nov"
+  // once it's shot, just "12 Nov" for a day gone by that isn't shot yet,
+  // "Was 12 Nov" for the date a postponed or canceled shoot was planned for.
+  function shootDateWords(s, today) {
+    if (!s.date) return 'Date not set';
+    if (ed.isOriginalPlanDate(s)) return `Was ${ed.rowDate(s.date, today, false)}`;
+    if (s.date === today) return 'Today';
+    if (s.date > today) return ed.rowDate(s.date, today, true);
+    return ed.POST_CAPTURE_STATUSES.includes(s.status) ? `Shot ${ed.rowDate(s.date, today, false)}` : ed.rowDate(s.date, today, false);
+  }
+
+  // What a shoot still needs, as small outlined flags (they took the place of
+  // the Overview's counter tiles): its team and mood board while it's being
+  // planned (shootPendingLabels), proofs once a photo shoot is captured, a
+  // reflection from then on. Final images are added later (see below).
+  function shootFlagWords(s) {
+    const flags = ed.shootPendingLabels(s).map(label => (label === 'Moodboard' ? 'Mood board' : label));
+    if (s.status === 'captured' && !ed.isVideoShoot(s)) flags.push('Proofs');
     const hasReflection = ed.hasText(s.whatWentRight) || ed.hasText(s.couldBeBetter) || ed.hasText(s.lessonsLearned);
-    const reflectionPendingText = (showBadge && ed.POST_CAPTURE_STATUSES.includes(s.status) && !hasReflection) ? 'Pending: Reflection' : '';
-    // Status now gets its own stacked line with a background pill (see
-    // .shoot-row-status-pill below) — everything else stays in the old
-    // <br>-joined badge, which keeps its existing hidden/shown logic and its
-    // async final-images top-up untouched, just moved to its own line under
-    // the stack instead of sharing a slot with status.
-    const badgeParts = [pendingText, proofsPendingText, reflectionPendingText].filter(Boolean);
-    const badgeHtml = badgeParts.join('<br>');
-    // Once delivered (or archived) there's nothing left to deliver, so the
-    // deadline no longer means anything — don't show it. Otherwise, an
-    // overdue deadline still shows, just in red.
-    const isOverdue = !!s.deadline && s.deadline < ed.todayStr();
-    const dueHtml = (s.deadline && !s.archived && s.status !== 'delivered')
-      ? `<span class="shoot-row-date-line shoot-row-due${isOverdue ? ' overdue' : ''}">Due: ${ed.prettyDateShort(s.deadline)}</span>`
-      : '';
-    const statusHtml = statusLabel
-      ? `<span class="shoot-row-status-pill">${ed.escapeHtml(statusLabel)}</span>`
-      : '';
-    // Opt-in (Today only): "Desert Western · Day 2 of 3" under the date for
-    // a shoot that's part of a project, in the date line's own style.
-    const rowProject = (opts && opts.showProjectLine && s.projectId) ? ed.findProject(s.projectId) : null;
-    const rowDayInfo = rowProject ? ed.projectDayInfo(s) : null;
-    const projectLineHtml = rowProject
-      ? `<span class="shoot-row-date-line">${ed.escapeHtml(rowProject.name)}${rowDayInfo ? ` · Day ${rowDayInfo.day} of ${rowDayInfo.total}` : ''}</span>`
-      : '';
+    if (ed.POST_CAPTURE_STATUSES.includes(s.status) && !hasReflection) flags.push('Reflection');
+    return flags;
+  }
+
+  function flagsHtml(flags) {
+    return flags.map(f => `<span class="flag">${ed.escapeHtml(f)}</span>`).join('');
+  }
+
+  function moreBtnHtml(name) {
+    return `<button type="button" class="row-more-btn" aria-label="More for ${ed.escapeHtml(name)}">${MORE_SVG}</button>`;
+  }
+
+  // opts: showStatus puts the status first on its line (lists that mix
+  // statuses); dueOnly leaves the shoot's day out (Upcoming deadlines);
+  // more adds the More button (Shoots); showBadge false leaves the flags off
+  // (Archive); switchToShootsTab opens the shoot on the Shoots tab.
+  // A deadline gone by takes over the line in crimson, written out
+  // ("Overdue by 3 days"), never colour alone. Once delivered or archived
+  // there's nothing left to deliver, so the deadline isn't shown.
+  function renderShootRow(container, s, opts) {
+    const o = opts || {};
+    const today = ed.todayStr();
+    const name = ed.shootDisplayName(s);
+    const status = o.showStatus ? (ed.STATUS_LABELS[s.status] || '') : '';
+    const owes = ed.isUpcomingDeadline(s);
+    const overdue = owes && s.deadline < today;
+    const info = ed.projectDayInfo(s);
+    const meta = overdue
+      ? ed.metaLine([ed.overdueWords(s.deadline, today), status])
+      : ed.metaLine([status, o.dueOnly ? '' : shootDateWords(s, today), info ? `Day ${info.day} of ${info.total}` : '', owes ? ed.dueWords(s.deadline, today) : '']);
+    const showFlags = o.showBadge !== false;
+    const flags = showFlags ? shootFlagWords(s) : [];
     const div = document.createElement('div');
     div.className = 'shoot-row';
     div.innerHTML = `
       ${shootThumbHtml(s)}
       <div class="shoot-row-body">
-        <span class="shoot-row-title"><strong>${ed.escapeHtml(ed.shootDisplayName(s))}</strong></span>
-        <span class="shoot-row-date-line">${ed.shootDateLabel(s, ed.prettyDateShort)}</span>
-        ${projectLineHtml}
-        ${dueHtml}
-        ${statusHtml}
-        <span class="badge"${badgeHtml ? '' : ' hidden'}>${badgeHtml}</span>
+        <span class="shoot-row-title">${ed.escapeHtml(name)}</span>
+        <span class="shoot-row-meta${overdue ? ' overdue' : ''}">${ed.escapeHtml(meta)}</span>
+        <span class="shoot-flags"${flags.length ? '' : ' hidden'}>${flagsHtml(flags)}</span>
       </div>
-      <div class="shoot-row-accent-strip">
-        <button type="button" class="row-options-btn" aria-label="Options">&#8942;</button>
-      </div>
+      ${o.more ? moreBtnHtml(name) : ''}
     `;
     div.addEventListener('click', () => {
-      if (opts && opts.switchToShootsTab) document.querySelector('.tab[data-view="shoots"]').click();
-      if (opts && opts.openArchiveMode) { ed.openArchiveMode(s.id); return; }
+      if (o.switchToShootsTab) document.querySelector('.tab[data-view="shoots"]').click();
       ed.openShootModal(s.id);
     });
-    // The whole yellow strip opens the options, not just the ⋮ circle in it:
-    // the strip is what reads as the button, and a tap on it just beside the
-    // ⋮ used to open the shoot instead. The ⋮ stays the focusable control
-    // (keyboard, VoiceOver); its click bubbles up to here.
-    div.querySelector('.shoot-row-accent-strip').addEventListener('click', (e) => {
-      e.stopPropagation();
-      ed.openShootOptions(s.id);
-    });
-    if (checkFinalImages) {
+    const more = div.querySelector('.row-more-btn');
+    if (more) {
+      more.addEventListener('click', (e) => {
+        e.stopPropagation();
+        ed.openShootOptions(s.id);
+      });
+    }
+    // A delivered photo shoot with no final images in yet: that needs a look
+    // in the photo store, so its flag comes in a moment after the row.
+    if (showFlags && s.status === 'delivered' && !ed.isVideoShoot(s)) {
       ed.idbGetImages(ed.finalImagesKey(s.id)).then(images => {
         if (images.length) return;
-        const badgeEl = div.querySelector('.badge');
-        badgeEl.innerHTML = [...badgeParts, 'Pending: Final images'].join('<br>');
-        badgeEl.hidden = false;
+        const flagsEl = div.querySelector('.shoot-flags');
+        flagsEl.insertAdjacentHTML('beforeend', flagsHtml(['Final images']));
+        flagsEl.hidden = false;
       }).catch(() => {});
     }
     container.appendChild(div);
   }
 
-  // A smaller, photo-free row for tight spaces (the Overview counter
-  // popups) — title, status, and shoot date, each on its own line, so
+  // A smaller, photo-free row for tight spaces (the lists that open from the
+  // Monday brief) — title, status, and shoot date, each on its own line, so
   // nothing is ever squeezed side-by-side against anything else.
-  // opts.openArchiveMode (the project popup, for archived days) opens the
-  // read-only Archive mode recap instead, same as a row on the Archive tab.
-  function renderCompactShootRow(container, s, opts) {
+  function renderCompactShootRow(container, s) {
     const statusLabel = ed.STATUS_LABELS[s.status] || '';
     const div = document.createElement('div');
     div.className = 'shoot-row-compact';
@@ -5788,7 +6013,6 @@ window.EyeParts.addShootRow = function addShootRow(ed) {
       <button type="button" class="row-options-btn" aria-label="Options">&#8942;</button>
     `;
     div.addEventListener('click', () => {
-      if (opts && opts.openArchiveMode) { ed.openArchiveMode(s.id); return; }
       ed.openShootModal(s.id);
     });
     div.querySelector('.row-options-btn').addEventListener('click', (e) => {
@@ -5896,76 +6120,72 @@ window.EyeParts.addProjectGroups = function addProjectGroups(ed) {
     return members.filter(ed.isUpcomingDeadline).map(s => s.deadline).sort()[0] || '';
   }
 
-  // One box standing in for a project's members in a list. It uses the same
-  // .shoot-row markup and classes as renderShootRow (same 96px thumb, accent
-  // strip and 120px body floor) but is filled from the project:
+  // The days a project's box spans, in its row's words: "9 to 11 Dec" while
+  // its last listed day is still ahead (or today), "Shot 9 to 11 Dec" once
+  // every listed day has passed, "Date not set" when none has a date.
+  // Postponed and canceled days are left out (their dates are only the
+  // original plan, see isOffScheduleShoot), unless every dated day is one:
+  // then it's the new dates they've been given since, if any (see
+  // isOriginalPlanDate), else "Was …" the span they were planned for.
+  function projectDateWords(members, today) {
+    const datesOf = list => list.map(s => s.date).filter(Boolean).sort();
+    let dates = datesOf(members.filter(ed.isProjectLiveShoot));
+    if (!dates.length) dates = datesOf(members.filter(s => ed.scheduledShootDate(s)));
+    if (!dates.length) {
+      const planned = datesOf(members);
+      return planned.length ? `Was ${ed.rowDateRange(planned[0], planned[planned.length - 1], today)}` : 'Date not set';
+    }
+    const range = ed.rowDateRange(dates[0], dates[dates.length - 1], today);
+    return dates[dates.length - 1] >= today ? range : `Shot ${range}`;
+  }
+
+  // One box standing in for a project's members in a list, in a shoot row's
+  // markup (renderShootRow) but filled from the project:
   // - its name, and its rep's cover (else the first member's that has one);
-  // - the date span of the members in THIS list;
-  // - a "N shoots" line in the date line's style. N counts every member,
-  //   archived ones included, so it reads the same in every list, plus
-  //   "· 2 of 3 shot" while the project is part-way through capture;
-  // - the earliest still-owed deadline, and the union of its listed members'
-  //   Pending labels.
-  // The same opts as renderShootRow switch the status pill and Pending line
-  // on or off. Title + date + count + due + one pill/badge line still fits
-  // inside the 120px min-height, so the box lines up with the shoot rows
-  // around it. Like a shoot row, it only grows when a long Pending line wraps
-  // on a narrow screen. Tapping the box, or its ⋮, opens the project popup,
-  // never one shoot; each day is reachable from there.
+  // - one line: its status (with opts.showStatus), "N shoots" (N counts every
+  //   member, archived ones included, so it reads the same in every list),
+  //   "2 of 3 shot" while it's part-way through capture, the date span of
+  //   the members in THIS list, and the earliest still-owed deadline
+  //   (crimson and written out once it's gone by);
+  // - the flags any of its listed days still has (team, mood board, proofs,
+  //   reflection), each once.
+  // Tapping the box, or its More, opens the project popup, never one shoot;
+  // each day is reachable from there.
   function renderProjectRow(container, item, opts) {
+    const o = opts || {};
     const { project, members, rep } = item;
+    const today = ed.todayStr();
+    const name = project.name || ed.UNTITLED_PROJECT_NAME;
     const allMembers = ed.projectMembers(project.id);
-    const showBadge = !opts || opts.showBadge !== false;
-    const statusKey = (showBadge && opts && opts.showStatus) ? ed.projectGroupStatusKey(members) : '';
-    const statusLabel = statusKey ? (ed.STATUS_LABELS[statusKey] || '') : '';
-    const pendingLabels = (showBadge && opts && opts.showPending)
-      ? [...new Set([].concat(...members.map(s => ed.shootPendingLabels(s))))]
-      : [];
-    const pendingText = pendingLabels.length ? `Pending: ${ed.escapeHtml(pendingLabels.join(', '))}` : '';
-    // The same per-day reminders a shoot row adds whenever its badge shows
-    // (proofs owed on a captured photo day, a reflection never written),
-    // said once for the box when any listed day has them.
-    const proofsPendingText = (showBadge && members.some(s => s.status === 'captured' && !ed.isVideoShoot(s))) ? 'Pending: Proofs' : '';
-    const reflectionPendingText = (showBadge && members.some(s => ed.POST_CAPTURE_STATUSES.includes(s.status)
-      && !ed.hasText(s.whatWentRight) && !ed.hasText(s.couldBeBetter) && !ed.hasText(s.lessonsLearned))) ? 'Pending: Reflection' : '';
-    const badgeHtml = [pendingText, proofsPendingText, reflectionPendingText].filter(Boolean).join('<br>');
-    // "· 2 of 3 shot" only while the project is part-way through capture
-    // (projectShotProgressLabel is the same test projectStatusLabel uses); a
-    // project entirely ahead or entirely shot already says so through its
-    // dates and the list it sits in.
-    const progress = ed.projectShotProgressLabel(allMembers);
-    const progressText = progress ? ` · ${progress}` : '';
-    const countText = `${allMembers.length} ${allMembers.length === 1 ? 'shoot' : 'shoots'}${progressText}`;
+    const statusKey = o.showStatus ? ed.projectGroupStatusKey(members) : '';
+    const status = statusKey ? (ed.STATUS_LABELS[statusKey] || '') : '';
+    const count = `${allMembers.length} ${allMembers.length === 1 ? 'shoot' : 'shoots'}`;
     const deadline = projectNextDeadline(members);
-    const isOverdue = !!deadline && deadline < ed.todayStr();
-    const dueHtml = deadline
-      ? `<span class="shoot-row-date-line shoot-row-due${isOverdue ? ' overdue' : ''}">Due: ${ed.prettyDateShort(deadline)}</span>`
-      : '';
-    const statusHtml = statusLabel
-      ? `<span class="shoot-row-status-pill">${ed.escapeHtml(statusLabel)}</span>`
-      : '';
+    const overdue = !!deadline && deadline < today;
+    const meta = overdue
+      ? ed.metaLine([ed.overdueWords(deadline, today), status, count])
+      : ed.metaLine([status, count, ed.projectShotProgressLabel(allMembers), o.dueOnly ? '' : projectDateWords(members, today), deadline ? ed.dueWords(deadline, today) : '']);
+    const flags = o.showBadge === false ? [] : [...new Set([].concat(...members.map(ed.shootFlagWords)))];
     const coverShoot = (rep && rep.projectPhoto) ? rep : allMembers.find(s => s.projectPhoto);
     const div = document.createElement('div');
     div.className = 'shoot-row';
     div.innerHTML = `
       ${ed.shootThumbHtml(coverShoot || {})}
       <div class="shoot-row-body">
-        <span class="shoot-row-title"><strong>${ed.escapeHtml(project.name || ed.UNTITLED_PROJECT_NAME)}</strong></span>
-        <span class="shoot-row-date-line">${ed.escapeHtml(projectDateRangeLabel(members))}</span>
-        <span class="shoot-row-date-line">${ed.escapeHtml(countText)}</span>
-        ${dueHtml}
-        ${statusHtml}
-        <span class="badge"${badgeHtml ? '' : ' hidden'}>${badgeHtml}</span>
+        <span class="shoot-row-title">${ed.escapeHtml(name)}</span>
+        <span class="shoot-row-meta${overdue ? ' overdue' : ''}">${ed.escapeHtml(meta)}</span>
+        <span class="shoot-flags"${flags.length ? '' : ' hidden'}>${ed.flagsHtml(flags)}</span>
       </div>
-      <div class="shoot-row-accent-strip">
-        <button type="button" class="row-options-btn" aria-label="Project options">&#8942;</button>
-      </div>
+      ${o.more ? ed.moreBtnHtml(name) : ''}
     `;
     div.addEventListener('click', () => ed.openProjectPopup(project.id));
-    div.querySelector('.row-options-btn').addEventListener('click', (e) => {
-      e.stopPropagation();
-      ed.openProjectPopup(project.id);
-    });
+    const more = div.querySelector('.row-more-btn');
+    if (more) {
+      more.addEventListener('click', (e) => {
+        e.stopPropagation();
+        ed.openProjectPopup(project.id);
+      });
+    }
     container.appendChild(div);
   }
 
@@ -6228,7 +6448,7 @@ window.EyeParts.addPhotoStore = function addPhotoStore(ed) {
 // (Loaded before app.js, which runs it in its turn.)
 window.EyeParts = window.EyeParts || {};
 window.EyeParts.addAppMenuStorageUsage = function addAppMenuStorageUsage(ed) {
-  Object.assign(ed, { categorizeStorageKey, hydratePhotos, carryPhotosOver, migrateInlinePhotos });
+  Object.assign(ed, { categorizeStorageKey, hydratePhotos, carryPhotosOver, migrateInlinePhotos, formatStorageBytes });
   // ---------- Storage usage (App menu) ----------
   // Every image key in the store matches exactly one of these suffix
   // patterns except mood board images, which were the original, un-suffixed
@@ -7190,7 +7410,6 @@ window.EyeParts.addLastPlace = function addLastPlace(ed) {
     if (!ed.lastPlaceArmed) return;
     try {
       const shootOpen = !ed.shootModalOverlay.hidden && ed.currentShootId;
-      const archiveOpen = !ed.archiveModeOverlay.hidden && ed.archiveModeShootId;
       localStorage.setItem(LAST_PLACE_KEY, JSON.stringify({
         book: document.getElementById('bookOverlay').hidden ? 'open' : 'shut',
         view: ed.currentScreen(),
@@ -7199,8 +7418,7 @@ window.EyeParts.addLastPlace = function addLastPlace(ed) {
         archiveFilter: ed.archiveFilter,
         journalFilter: ed.journalFilter,
         statsYearFilter: ed.statsYearFilter,
-        shoot: shootOpen ? { id: ed.currentShootId, page: { id: ed.shootPageId, sub: ed.shootSub } } : null,
-        archive: archiveOpen ? { id: ed.archiveModeShootId, at: ed.archiveAt } : null,
+        shoot: shootOpen ? { id: ed.currentShootId, page: ed.shootOnFront ? { id: 'front', sub: 0 } : { id: ed.shootPageId, sub: ed.shootSub } } : null,
         shootMode: !ed.shootModeOverlay.hidden && ed.getShootModeShootId() ? { id: ed.getShootModeShootId(), at: ed.shootModeAt } : null,
       }));
     } catch (e) { /* storage unavailable: it just opens where the sun menu's fallback says */ }
@@ -7349,72 +7567,15 @@ window.EyeParts.addScreenPages = function addScreenPages(ed) {
     .filter(el => !el.hidden)
     .map(el => ({ el, heads: headsAbove(el, root) }));
 
-  function journalAtoms(root) {
-    const atoms = [];
-    root.querySelectorAll('.journal-entry-images:not([hidden])').forEach((grid) => {
-      // Photo rows take whole ruled lines, so what follows stays on the rules.
-      const thumb = grid.querySelector('.moodboard-thumb');
-      if (!thumb) return;
-      grid.style.gridAutoRows = `${Math.ceil(thumb.offsetHeight / ed.LINE) * ed.LINE}px`;
-      grid.style.rowGap = '0';
-      grid.style.alignItems = 'start';
-    });
-    // Like a real notebook, nothing is written twice: a heading goes with the
-    // first line under it (so it's never left alone at the foot of a page), and
-    // a card that runs over just carries on at the top of the next page.
-    const claimed = new Set();
-    root.querySelectorAll('#journalList .log-card').forEach((card) => {
-      const above = headsAbove(card, root).filter(h => !claimed.has(h));
-      above.forEach(h => claimed.add(h));
-      let pending = null;
-      const lead = () => { const h = pending || []; pending = null; return h; };
-      if (card.classList.contains('journal-entry-card')) {
-        const heading = card.querySelector('.journal-entry-heading');
-        pending = [...above, heading];
-        const before = atoms.length;
-        const body = card.querySelector('.journal-entry-body');
-        const rows = Math.round(body.offsetHeight / ed.LINE);
-        for (let row = 0; row < rows; row++) atoms.push({ el: body, heads: lead(), row, rows });
-        const grid = card.querySelector('.journal-entry-images');
-        if (grid && !grid.hidden) {
-          const lines = new Map();
-          [...grid.children].forEach((thumb) => {
-            const top = Math.round(thumb.getBoundingClientRect().top);
-            if (!lines.has(top)) lines.set(top, []);
-            lines.get(top).push(thumb);
-          });
-          lines.forEach(([el, ...also]) => atoms.push({ el, also, heads: lead() }));
-        }
-        const tags = card.querySelector('.journal-entry-tags');
-        if (tags && !tags.hidden) atoms.push({ el: tags, heads: lead() });
-        if (atoms.length === before) atoms.push({ el: heading, heads: above });
-        atoms[atoms.length - 1].hang = true;
-        return;
-      }
-      const week = card.querySelector(':scope > .log-week-heading');
-      pending = [...above, week];
-      [...card.querySelector('.journal-paper').children].forEach((child) => {
-        if (child.matches('.log-section-label')) { pending = [...(pending || []), child]; return; }
-        if (child.matches('ul')) [...child.children].forEach(el => atoms.push({ el, heads: lead() }));
-        else atoms.push({ el: child, heads: lead() });
-      });
-      if (atoms.length) atoms[atoms.length - 1].hang = true;
-    });
-    const empty = document.getElementById('journalEmpty');
-    if (!empty.hidden) atoms.push({ el: empty, heads: [] });
-    return atoms;
-  }
-
   const SCREEN_ATOMS = {
-    overview: root => listAtoms(root, '#newShootBtn, #statsRow, .section-block:not([hidden]) .shoot-row'),
+    overview: root => listAtoms(root, '#todayCard, .section-block:not([hidden]) :is(.next-shoot, .shoot-row)'),
     shoots: root => listAtoms(root, '#shootSortToggle, #shootSortOptions, #shootList .shoot-row, #shootEmpty'),
-    archive: root => listAtoms(root, '#archiveSlideshow, #archiveFilterToggle, #archiveFilters, #archiveList .shoot-row, #archiveEmpty'),
-    journal: journalAtoms,
+    archive: root => listAtoms(root, '#archiveSlideshow, #archiveCaption, #archiveFilters, #archiveList .archive-month, #archiveList .shoot-status-rows:not([hidden]) > .shoot-row, #archiveEmpty'),
+    journal: root => listAtoms(root, '#view-journal .list-intro, .journal-toolbar, #journalFilters, #journalList > .log-card, #journalEmpty'),
   };
 
   function statsAtoms(page) {
-    const title = page.querySelector('.stats-page-title');
-    const heads = title ? [title] : [];
+    const heads = [...page.querySelectorAll(':scope > .stats-page-title, :scope > .stats-sentence')];
     const atoms = [];
     const pie = page.querySelector(':scope > .pie-chart');
     if (pie) atoms.push({ el: pie, heads });
@@ -7433,9 +7594,9 @@ window.EyeParts.addScreenPages = function addScreenPages(ed) {
     return atoms;
   }
 
-  // Every breakdown is on the one page, one under another.
+  // One chart a page.
   function statsFlat() {
-    return ed.statsFlows.length ? [{ stat: 0, sub: 0 }] : [];
+    return ed.statsFlows.map((f, stat) => ({ stat, sub: 0 }));
   }
 
   function buildStatsFlows() {
@@ -7672,7 +7833,7 @@ window.EyeParts.addFirstTimeIntros = function addFirstTimeIntros(ed) {
   const TAB_INTROS = {
     overview: {
       title: 'Overview',
-      text: "this is your at-a-glance dashboard to see how many shoots are ready to go, still being planned, or waiting on a team or mood board, plus what's coming up next. tap '+ new shoot' anytime to start logging one.",
+      text: "this is your at-a-glance page. the Today card at the top shows only what needs you now, then comes your next shoot and everything after it, with small flags for what each shoot still needs. tap + at the top anytime to start a new shoot.",
     },
     shoots: {
       title: 'Shoots',
@@ -7683,26 +7844,12 @@ window.EyeParts.addFirstTimeIntros = function addFirstTimeIntros(ed) {
       text: "shoots move here once you mark them complete, keeping your active list clean while still letting you look back. This is also where you'll find backup and restore for all your data.",
     },
     journal2: {
-      title: 'Weekly',
+      title: 'Reflections',
       text: "one running page with two kinds of entries. The weekly log fills itself in for every week you shoot: which shoots happened, their categories, and the lessons learned pulled from each shoot's reflection. Tap any shoot or takeaway to see where it came from. Tap '+' to add your own reflection anytime, and tag entries with hashtags so you can find them again later. The table of contents jumps you to any entry or week.",
     },
     stats: {
       title: 'Stats',
       text: 'swipe between breakdowns of your visual languages, categories, team members, statuses, and locations. tap any slice to see exactly which shoots are behind it.',
-    },
-    // Shown once, right after the first automatic daily report is dismissed —
-    // that's the moment the report exists in your head and "where did that go?"
-    // is the natural next question. Routed through showTabIntro so it reuses
-    // the same popup and seen-once bookkeeping as the tab intros.
-    // Shown once, right after shoot mode is declined — the moment the question
-    // "fine, but how do I get it back?" actually occurs to you.
-    'shootmode:where': {
-      title: 'Whenever you want it',
-      text: "no problem. Shoot mode is always one tap away: open the shoot and hit 'Shoot mode' in the bar at the bottom of the page.",
-    },
-    'report:bell': {
-      title: 'Find this again',
-      text: "that was your daily report. It turns up once a day with anything that needs attention. You can pull it back up whenever you like: tap the bell at the top of the Overview screen.",
     },
   };
 
@@ -7851,13 +7998,6 @@ window.EyeParts.addOverview = function addOverview(ed) {
     reflections: 'Pending reflections',
   }; ed.STAT_BOX_TITLES = STAT_BOX_TITLES;
 
-  document.getElementById('statsRow').addEventListener('click', (e) => {
-    const box = e.target.closest('.stat-box');
-    if (!box) return;
-    const key = box.dataset.stat;
-    openStatBoxDetail(STAT_BOX_FILTERS[key], STAT_BOX_TITLES[key], key);
-  });
-
   // Tracks which stat box's list is showing so closeShootModal can re-apply
   // the same filter — the popup stacks UNDER the shoot modal rather than
   // closing when a row's shoot is opened (see .stat-box-detail-overlay's
@@ -7939,9 +8079,6 @@ window.EyeParts.addOverview = function addOverview(ed) {
       lockBodyScroll();
     } else {
       unlockBodyScroll();
-      // A launch popup that had to wait for the screen to clear (see the
-      // Monday brief).
-      ed.runOwedLaunchPopups();
     }
   }
 
@@ -8043,9 +8180,8 @@ window.EyeParts.addProjectsProjectPopup = function addProjectsProjectPopup(ed) {
     members.forEach(s => {
       // The stock compact row, so its tap (opens the shoot modal, which
       // stacks above this popup) and its ⋮ (normal shoot options) work
-      // here unchanged; only the title gets its "Day N" prefix. An archived
-      // day opens its Archive mode recap instead, like on the Archive tab.
-      ed.renderCompactShootRow(list, s, { openArchiveMode: !!s.archived });
+      // here unchanged; only the title gets its "Day N" prefix.
+      ed.renderCompactShootRow(list, s);
       const info = ed.projectDayInfo(s);
       if (!info) return;
       const titleEl = list.lastElementChild && list.lastElementChild.querySelector('.shoot-row-compact-title');
@@ -8242,7 +8378,8 @@ window.EyeParts.addProjectsProjectPopup = function addProjectsProjectPopup(ed) {
 ;
 
 // ---- pages/overview/draw-overview.js ----
-// Drawing the Overview tab.
+// Drawing the Overview tab: the Today card, the next shoot, and the lists
+// under it (upcoming shoots, proofs pending, upcoming deadlines).
 // (Loaded before app.js, which runs it in its turn.)
 window.EyeParts = window.EyeParts || {};
 window.EyeParts.addOverviewDrawOverview = function addOverviewDrawOverview(ed) {
@@ -8251,91 +8388,184 @@ window.EyeParts.addOverviewDrawOverview = function addOverviewDrawOverview(ed) {
     drawOverview();
     ed.repaginate('overview');
   }
+
+  // A section's count, after its title, in the quieter type.
+  function setCount(id, n) {
+    document.getElementById(id).textContent = String(n);
+  }
+
   function drawOverview() {
-    const todayShoots = ed.state.shoots.filter(ed.isToday)
-      .sort((a, b) => ed.dateTimeSortKey(a).localeCompare(ed.dateTimeSortKey(b)));
-    const upcomingShoots = ed.state.shoots.filter(ed.isUpcoming)
-      .sort((a, b) => ed.dateTimeSortKey(a).localeCompare(ed.dateTimeSortKey(b)));
+    ed.renderTodayCard();
+    const byDate = (a, b) => ed.dateTimeSortKey(a).localeCompare(ed.dateTimeSortKey(b));
+    // Today's shoots and the ones after: the first is the Next shoot card,
+    // the rest are Upcoming shoots.
+    const comingShoots = ed.state.shoots.filter(s => ed.isToday(s) || ed.isUpcoming(s)).sort(byDate);
+    const next = comingShoots[0] || null;
+    ed.renderNextShoot(next);
+    const upcomingShoots = comingShoots.slice(1);
     const deadlineShoots = ed.state.shoots.filter(ed.isUpcomingDeadline)
       .filter(s => ed.weekBucket(s.deadline) === 'this_week' || ed.weekBucket(s.deadline) === 'next_week')
       .sort((a, b) => ed.dateSortKey(a.deadline).localeCompare(ed.dateSortKey(b.deadline)));
     // Video has no proofs step, so a captured video shoot isn't listed here.
-    const proofsPendingShoots = ed.state.shoots.filter(s => !s.archived && s.status === 'captured' && !ed.isVideoShoot(s))
-      .sort((a, b) => ed.dateTimeSortKey(a).localeCompare(ed.dateTimeSortKey(b)));
+    const proofsPendingShoots = ed.state.shoots.filter(s => !s.archived && s.status === 'captured' && !ed.isVideoShoot(s)).sort(byDate);
 
     // A project's members collapse into one box per list (collapseProjects),
-    // so every list below and each counter's number counts a project once —
-    // a tile's number always matches the rows its popup shows. Today is the
-    // one exception: a project day happening today is listed as itself.
+    // so every list below and its count counts a project once.
     const upcomingItems = ed.collapseProjects(upcomingShoots);
     const proofsPendingItems = ed.collapseProjects(proofsPendingShoots);
     const deadlineItems = ed.collapseProjects(deadlineShoots);
 
-    const pendingTeamMoodboardCount = ed.collapseProjects(ed.state.shoots.filter(ed.STAT_BOX_FILTERS.pending)).length;
-    const inTheEditCount = ed.collapseProjects(ed.state.shoots.filter(ed.STAT_BOX_FILTERS.editing)).length;
-    const pendingReflectionsCount = ed.collapseProjects(ed.state.shoots.filter(ed.STAT_BOX_FILTERS.reflections)).length;
-
-    // "REFLECTIONS" is wider than a tile on most phones, which stretched its
-    // column past the other two: the soft hyphen lets it break as
-    // "REFLEC-TIONS" only where it doesn't fit, so the tiles stay equal.
-
-    document.getElementById('statsRow').innerHTML = `
-      <div class="stat-box" data-stat="pending">
-        <span class="stat-num">${pendingTeamMoodboardCount}</span>
-        <span class="stat-label">Teams + mood boards pending</span>
-      </div>
-      <div class="stat-box" data-stat="editing">
-        <span class="stat-num">${inTheEditCount}</span>
-        <span class="stat-label">In the edit</span>
-      </div>
-      <div class="stat-box" data-stat="reflections">
-        <span class="stat-num">${pendingReflectionsCount}</span>
-        <span class="stat-label">Pending reflec&shy;tions</span>
-      </div>
-    `;
-
-    document.getElementById('todaySection').hidden = todayShoots.length === 0;
-    document.getElementById('todayCount').textContent = `[${todayShoots.length}]`;
-    const todayList = document.getElementById('todayShootsList');
-    todayList.innerHTML = '';
-    // Today lists each shoot day as itself (a project's other days are still
-    // one box under Upcoming), so a project day says which project it's from.
-    todayShoots.forEach(s => ed.renderShootRow(todayList, s, { showStatus: true, showProjectLine: true }));
-
     // A section with nothing in it isn't on the page at all.
     document.getElementById('upcomingSection').hidden = !upcomingItems.length;
-    document.getElementById('upcomingCount').textContent = `[${upcomingItems.length}]`;
+    setCount('upcomingCount', upcomingItems.length);
     const upList = document.getElementById('upcomingShootsList');
     upList.innerHTML = '';
     if (upcomingItems.length) ed.renderBucketedShoots(upList, upcomingItems, ['this_week', 'next_week', 'later'], 'date', { showStatus: true });
 
     document.getElementById('proofsPendingSection').hidden = !proofsPendingItems.length;
-    document.getElementById('proofsPendingCount').textContent = `[${proofsPendingItems.length}]`;
+    setCount('proofsPendingCount', proofsPendingItems.length);
     const proofsList = document.getElementById('proofsPendingShootsList');
     proofsList.innerHTML = '';
-    proofsPendingItems.forEach(item => ed.renderListItem(proofsList, item, { showBadge: false }));
+    proofsPendingItems.forEach(item => ed.renderListItem(proofsList, item, { showStatus: true }));
 
     document.getElementById('upcomingDeadlinesSection').hidden = !deadlineItems.length;
-    document.getElementById('upcomingDeadlinesCount').textContent = `[${deadlineItems.length}]`;
+    setCount('upcomingDeadlinesCount', deadlineItems.length);
     const deadlineList = document.getElementById('upcomingDeadlinesShootsList');
     deadlineList.innerHTML = '';
-    if (deadlineItems.length) ed.renderBucketedShoots(deadlineList, deadlineItems, ['this_week', 'next_week'], 'deadline', { showBadge: false });
-
-    // Section heading colors alternate dynamically, always starting with
-    // yellow — Today drops out of the page entirely when nothing's due
-    // today, so whichever section actually lands first (Today or Upcoming)
-    // gets yellow, not a section tied to a fixed color.
-    const overviewSectionIds = ['todaySection', 'upcomingSection', 'proofsPendingSection', 'upcomingDeadlinesSection'];
-    let nextIsYellow = true;
-    overviewSectionIds.forEach(id => {
-      const section = document.getElementById(id);
-      if (section.hidden) return;
-      const heading = section.querySelector('h2');
-      heading.classList.toggle('heading-yellow', nextIsYellow);
-      heading.classList.toggle('heading-navy', !nextIsYellow);
-      nextIsYellow = !nextIsYellow;
-    });
+    if (deadlineItems.length) ed.renderBucketedShoots(deadlineList, deadlineItems, ['this_week', 'next_week'], 'deadline', { showStatus: true, dueOnly: true });
   }
+};
+;
+
+// ---- pages/overview/today-card.js ----
+// The Today card at the top of Overview: only what needs you now, in place of
+// the pop-ups that used to open on launch. A shoot ready to shoot today (with
+// Shoot mode), a shoot whose day has gone by without an answer ("Did it
+// happen?"), deadlines gone by, and Monday's look back at last week. Hidden
+// when there's nothing. Full report (and the bell) open the daily report.
+// (Loaded before app.js, which runs it in its turn.)
+window.EyeParts = window.EyeParts || {};
+window.EyeParts.addOverviewTodayCard = function addOverviewTodayCard(ed) {
+  Object.assign(ed, { renderTodayCard });
+  const card = document.getElementById('todayCard');
+  const items = document.getElementById('todayCardItems');
+  const CHEVRON = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><polyline points="9 5 16 12 9 19"/></svg>';
+  const byDate = (a, b) => ed.dateTimeSortKey(a).localeCompare(ed.dateTimeSortKey(b));
+  const b = text => `<b>${ed.escapeHtml(text)}</b>`;
+
+  // A line you tap to go somewhere.
+  const linkItem = (act, id, html) => `<button type="button" class="today-item today-link" data-act="${act}" data-id="${ed.escapeHtml(id)}"><span>${html}</span>${CHEVRON}</button>`;
+  // A question with its two answers.
+  const askItem = (id, html, yes, no) => `<div class="today-item"><p>${html}</p><div class="today-btns">${yes}${no}</div></div>`;
+  const btn = (act, id, label, primary) => `<button type="button" class="${primary ? 'primary' : 'secondary'}" data-act="${act}" data-id="${ed.escapeHtml(id)}">${label}</button>`;
+
+  function renderTodayCard() {
+    // The day starts at 5am, as the daily report's does (effectiveReportDateStr):
+    // a shoot that ran late last night isn't "yesterday's" yet at 1am.
+    const day = ed.effectiveReportDateStr();
+    const today = ed.todayStr();
+    const html = [];
+
+    // Shoot day: only once it's Shoot ready, since that's when Shoot mode works.
+    if (!ed.shootModeOverlay || ed.shootModeOverlay.hidden) {
+      ed.state.shoots.filter(s => !s.archived && s.status === 'waiting_to_shoot' && s.date === day).sort(byDate).forEach((s) => {
+        html.push(askItem(s.id, `You're shooting ${b(ed.shootDisplayName(s))} today.`, btn('shoot-mode', s.id, 'Shoot mode', true), ''));
+      });
+    }
+
+    // Any shoot whose day has gone by and isn't marked shot yet, oldest
+    // first, however many days ago (so a few days away from the app don't
+    // lose one). A postponed or canceled shoot's kept date already has its
+    // answer; a new date it's been given since is asked about like any
+    // other (isOriginalPlanDate).
+    ed.state.shoots.filter(s => !s.archived && !ed.POST_CAPTURE_STATUSES.includes(s.status) && !ed.isOriginalPlanDate(s) && s.date && s.date < day)
+      .sort(byDate).forEach((s) => {
+        const info = ed.projectDayInfo(s);
+        const name = `${b(ed.shootDisplayName(s))}${info ? ` (day ${info.day})` : ''}`;
+        html.push(askItem(s.id, `Did ${name} happen? It was set for ${ed.escapeHtml(ed.setForWords(s.date, day))}.`,
+          btn('happened', s.id, 'Yes, it happened', true), btn('move', s.id, 'Move the date', false)));
+      });
+
+    // Deadlines gone by: once per project, whose days share one.
+    const overdue = ed.state.shoots.filter(s => ed.isUpcomingDeadline(s) && s.deadline < today);
+    ed.collapseProjects(overdue).forEach((item) => {
+      const isProject = item.kind === 'project';
+      const deadline = isProject ? item.members.map(s => s.deadline).sort()[0] : item.shoot.deadline;
+      const name = isProject ? (item.project.name || ed.UNTITLED_PROJECT_NAME) : ed.shootDisplayName(item.shoot);
+      html.push(linkItem(isProject ? 'project' : 'shoot', isProject ? item.project.id : item.shoot.id,
+        `${b(name)} is <span class="today-late">${ed.pastDeadlineWords(deadline, today)}</span> its deadline.`));
+    });
+
+    // On a Monday: last week, looked back on, until it's been read.
+    if (ed.mondayBriefDue()) html.push(linkItem('brief', '', `${b('Last week')}: your shoots and what you took from them.`));
+
+    items.innerHTML = html.join('');
+    card.hidden = !html.length;
+  }
+
+  items.addEventListener('click', (e) => {
+    const el = e.target.closest('[data-act]');
+    if (!el) return;
+    const id = el.dataset.id;
+    switch (el.dataset.act) {
+      case 'shoot-mode': ed.openShootMode(id); break;
+      // As the old day-after check-in did: the status changes on the spot
+      // (applyStatusChange saves and redraws, which takes the line away),
+      // without the follow-up questions a status change usually brings.
+      case 'happened': ed.applyStatusChange(id, 'captured', { followUps: false }); break;
+      // Postponed (its date kept as the original plan), then its page, to
+      // give it the new one.
+      case 'move':
+        if (ed.applyStatusChange(id, 'rescheduled', { followUps: false }) !== null) ed.openShootModal(id);
+        break;
+      case 'shoot': ed.openShootModal(id); break;
+      case 'project': ed.openProjectPopup(id); break;
+      case 'brief': ed.maybeShowMondayBrief(); break;
+      default: break;
+    }
+  });
+
+  document.getElementById('todayReportBtn').addEventListener('click', () => ed.openNotificationsBell());
+};
+;
+
+// ---- pages/overview/next-shoot.js ----
+// The Next shoot card on Overview: the next shoot coming up (today's first),
+// with its cover, how many days off it is, who's in it, its status, and its
+// day and time. Tap it to open the shoot. Hidden when nothing's coming up.
+// (Loaded before app.js, which runs it in its turn.)
+window.EyeParts = window.EyeParts || {};
+window.EyeParts.addOverviewNextShoot = function addOverviewNextShoot(ed) {
+  Object.assign(ed, { renderNextShoot });
+  const section = document.getElementById('nextShootSection');
+  const holder = document.getElementById('nextShootCard');
+  let shownId = null;
+
+  function renderNextShoot(s) {
+    section.hidden = !s;
+    holder.innerHTML = '';
+    shownId = s ? s.id : null;
+    if (!s) return;
+    const today = ed.todayStr();
+    const names = (s.talents || []).map(t => t.name).filter(ed.hasText);
+    const info = ed.projectDayInfo(s);
+    const when = ed.metaLine([ed.rowDate(s.date, today, true), s.time ? ed.prettyTime(s.time) : '']);
+    holder.innerHTML = `
+      <button type="button" class="next-shoot">
+        <span class="next-shoot-cover">${ed.shootThumbHtml(s)}</span>
+        <span class="next-shoot-body">
+          <span class="next-shoot-tag">${ed.escapeHtml(ed.daysAwayTag(s.date, today))}</span>
+          <span class="next-shoot-name">${ed.escapeHtml(ed.shootDisplayName(s))}</span>
+          ${names.length ? `<span class="next-shoot-with">With ${ed.escapeHtml(ed.joinWithAnd(names))}</span>` : ''}
+          <span class="next-shoot-meta next-shoot-status">${ed.escapeHtml(ed.metaLine([ed.STATUS_LABELS[s.status] || '', info ? `Day ${info.day} of ${info.total}` : '']))}</span>
+          <span class="next-shoot-meta">${ed.escapeHtml(when)}</span>
+        </span>
+      </button>`;
+  }
+
+  holder.addEventListener('click', (e) => {
+    if (shownId && e.target.closest('.next-shoot')) ed.openShootModal(shownId);
+  });
 };
 ;
 
@@ -8410,8 +8640,9 @@ window.EyeParts.addShootsShootLog = function addShootsShootLog(ed) {
     return 'future';
   }
 
+  const CHEVRON_DOWN = '<svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>';
   function renderShootSortOptions() {
-    document.getElementById('shootSortToggle').textContent = `Sort: ${SHOOT_SORT_LABELS[shootSort]}`;
+    document.getElementById('shootSortToggle').innerHTML = `Sort: ${SHOOT_SORT_LABELS[shootSort]} ${CHEVRON_DOWN}`;
     document.querySelectorAll('#shootSortOptions .chip').forEach(chip => {
       chip.classList.toggle('active', chip.dataset.sort === shootSort);
     });
@@ -8431,32 +8662,35 @@ window.EyeParts.addShootsShootLog = function addShootsShootLog(ed) {
     renderShoots();
   });
 
-  function renderCategoryFilterChips(containerId, toggleId, activeFilter) {
+  // The category chips: All, each category you show (Edit picks them) that
+  // has a shoot in the list (and the one picked), then Edit.
+  function renderCategoryFilterChips(containerId, toggleId, activeFilter, usedCats) {
     const container = document.getElementById(containerId);
-    const visibleCats = ed.CATEGORY_FILTER_ORDER.filter(ed.isCategoryVisible);
+    const visibleCats = ed.CATEGORY_FILTER_ORDER.filter(cat => ed.isCategoryVisible(cat) && (!usedCats || usedCats.has(cat) || cat === activeFilter));
     container.innerHTML = `
       <button type="button" class="chip ${activeFilter === 'all' ? 'active' : ''}" data-filter="all">All</button>
       ${visibleCats.map(cat => `<button type="button" class="chip ${activeFilter === cat ? 'active' : ''}" data-filter="${cat}">${ed.CATEGORY_LABELS[cat]}</button>`).join('')}
-      <button type="button" class="chip chip-manage"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> Edit</button>
+      <button type="button" class="chip chip-manage">Edit</button>
     `;
     document.getElementById(toggleId).textContent = `Filter: ${activeFilter === 'all' ? 'All' : (ed.CATEGORY_LABELS[activeFilter] || 'All')}`;
   }
 
   // Shared renderer for one nested group (status / date bucket / category)
-  // on the Shoots page — same collapsible pill-heading + rows-wrap structure
-  // regardless of which sort mode built the group. Takes collapseProjects()
-  // items, so a project shows as one box (see renderListItem).
-  function renderShootGroup(list, groupKey, label, items, visibleIndex) {
+  // on the Shoots page — the same title (with how many rows it has) and
+  // rows regardless of which sort mode built the group. Takes
+  // collapseProjects() items, so a project shows as one box (see
+  // renderListItem).
+  function renderShootGroup(list, groupKey, label, items) {
     const groupEl = document.createElement('div');
     groupEl.className = 'shoot-status-group';
 
     const heading = document.createElement('h2');
-    heading.className = `status-group-heading ${visibleIndex % 2 === 0 ? 'heading-yellow' : 'heading-navy'}`;
-    heading.textContent = label;
+    heading.className = 'status-group-heading';
+    heading.innerHTML = `${ed.escapeHtml(label)} <span>${items.length}</span>`;
 
     const rowsWrap = document.createElement('div');
     rowsWrap.className = 'shoot-status-rows';
-    items.forEach(item => ed.renderListItem(rowsWrap, item, { showPending: true }));
+    items.forEach(item => ed.renderListItem(rowsWrap, item, { more: true }));
 
     groupEl.appendChild(heading);
     groupEl.appendChild(rowsWrap);
@@ -8470,7 +8704,6 @@ window.EyeParts.addShootsShootLog = function addShootsShootLog(ed) {
   // goes in the group of its least-advanced listed day (listItemStatusKey)
   // and sorts by its rep, through the same comparators.
   function renderShootsByStatus(list, items) {
-    let visibleIndex = 0;
     Object.keys(ed.STATUS_LABELS).forEach(statusKey => {
       const group = items.filter(item => ed.listItemStatusKey(item) === statusKey)
         .sort((a, b) => {
@@ -8483,8 +8716,7 @@ window.EyeParts.addShootsShootLog = function addShootsShootLog(ed) {
             : ed.dateTimeSortKey(repA).localeCompare(ed.dateTimeSortKey(repB));
         });
       if (!group.length) return;
-      renderShootGroup(list, statusKey, ed.STATUS_LABELS[statusKey], group, visibleIndex);
-      visibleIndex++;
+      renderShootGroup(list, statusKey, ed.STATUS_LABELS[statusKey], group);
     });
   }
 
@@ -8500,13 +8732,11 @@ window.EyeParts.addShootsShootLog = function addShootsShootLog(ed) {
       if (!buckets.has(bucket)) buckets.set(bucket, []);
       buckets.get(bucket).push(item);
     });
-    let visibleIndex = 0;
     SHOOT_DATE_BUCKET_ORDER.forEach(bucketKey => {
       const group = buckets.get(bucketKey);
       if (!group || !group.length) return;
       group.sort((a, b) => ed.dateTimeSortKey(ed.listItemRep(a)).localeCompare(ed.dateTimeSortKey(ed.listItemRep(b))));
-      renderShootGroup(list, `date:${bucketKey}`, SHOOT_DATE_BUCKET_LABELS[bucketKey], group, visibleIndex);
-      visibleIndex++;
+      renderShootGroup(list, `date:${bucketKey}`, SHOOT_DATE_BUCKET_LABELS[bucketKey], group);
     });
   }
 
@@ -8521,13 +8751,11 @@ window.EyeParts.addShootsShootLog = function addShootsShootLog(ed) {
       if (!buckets.has(cat)) buckets.set(cat, []);
       buckets.get(cat).push(item);
     });
-    let visibleIndex = 0;
     ed.CATEGORY_FILTER_ORDER.forEach(cat => {
       const group = buckets.get(cat);
       if (!group || !group.length) return;
       group.sort((a, b) => ed.dateTimeSortKey(ed.listItemRep(a)).localeCompare(ed.dateTimeSortKey(ed.listItemRep(b))));
-      renderShootGroup(list, `cat:${cat}`, ed.CATEGORY_LABELS[cat] || 'Other', group, visibleIndex);
-      visibleIndex++;
+      renderShootGroup(list, `cat:${cat}`, ed.CATEGORY_LABELS[cat] || 'Other', group);
     });
   }
 
@@ -8545,6 +8773,9 @@ window.EyeParts.addShootsShootLog = function addShootsShootLog(ed) {
 
     list.innerHTML = '';
     document.getElementById('shootEmpty').hidden = items.length !== 0;
+    // Every shoot listed, a project's days each counted.
+    const count = ed.state.shoots.filter(s => !s.archived).length;
+    document.getElementById('shootCount').textContent = count ? `${count} ${count === 1 ? 'shoot' : 'shoots'}` : '';
 
     if (shootSort === 'shoot_date') renderShootsByDate(list, items);
     else if (shootSort === 'category') renderShootsByCategory(list, items);
@@ -8554,11 +8785,12 @@ window.EyeParts.addShootsShootLog = function addShootsShootLog(ed) {
 ;
 
 // ---- pages/archive/archive.js ----
-// The Archive tab.
+// The Archive tab: its slideshow of final images (with the shoot each is
+// from under it) and its category filter. The list is archive-list.js.
 // (Loaded before app.js, which runs it in its turn.)
 window.EyeParts = window.EyeParts || {};
 window.EyeParts.addArchive = function addArchive(ed) {
-  Object.assign(ed, { startArchiveSlideshow, stopArchiveSlideshow, loadArchiveSlideshow, renderArchiveSlideshow, renderArchive });
+  Object.assign(ed, { startArchiveSlideshow, stopArchiveSlideshow, loadArchiveSlideshow, renderArchiveSlideshow });
   // ---------- Archive view ----------
   ed.archiveFilter = 'all';
   let archiveSlideshowTimer = null;
@@ -8598,7 +8830,19 @@ window.EyeParts.addArchive = function addArchive(ed) {
       current[idx].classList.remove('active');
       idx = (idx + 1) % current.length;
       current[idx].classList.add('active');
+      showCaption(current[idx]);
     }, 4200);
+  }
+
+  // Under the photo: which shoot it's from, and when ("Final image, Nov").
+  function showCaption(img) {
+    const caption = document.getElementById('archiveCaption');
+    const shoot = img && ed.state.shoots.find(s => s.id === img.dataset.shootId);
+    caption.hidden = !shoot;
+    if (!shoot) return;
+    const month = shoot.date ? ed.rowDate(shoot.date, ed.todayStr(), false).replace(/^\d+ /, '') : '';
+    document.getElementById('archiveCaptionLabel').textContent = ed.metaLine(['Final image', month]);
+    document.getElementById('archiveCaptionName').textContent = ed.shootDisplayName(shoot);
   }
 
   function stopArchiveSlideshow() {
@@ -8669,7 +8913,7 @@ window.EyeParts.addArchive = function addArchive(ed) {
       const showing = images.length ? container.querySelector('img.active') : null;
       container.querySelectorAll('img').forEach(img => { if (img !== showing) img.remove(); });
       document.getElementById('archiveSlideshowEmpty').hidden = images.length > 0;
-      if (!images.length) return;
+      if (!images.length) { showCaption(null); return; }
 
       let first = null;
       images.forEach(entry => {
@@ -8684,6 +8928,7 @@ window.EyeParts.addArchive = function addArchive(ed) {
       // Archive's hidden, it's simply there when you get to it).
       void first.offsetWidth;
       first.classList.add('active');
+      showCaption(first);
       if (showing) {
         showing.classList.remove('active');
         // The rotation starts once the old photo's gone, so it counts from
@@ -8709,54 +8954,71 @@ window.EyeParts.addArchive = function addArchive(ed) {
     if (!img) return;
     const shoot = ed.state.shoots.find(s => s.id === img.dataset.shootId);
     if (!shoot) return;
-    // An archived shoot's photo opens its Archive mode recap, same as its
-    // row in the list below (its "shoot details" button goes on to the
-    // page). The slideshow also shows final images from shoots that aren't
-    // archived yet, which have no Archive mode, so those still open the
-    // page on the Shoots tab.
-    if (shoot.archived) { ed.openArchiveMode(shoot.id); return; }
-    document.querySelector(`.tab[data-view="${shoot.archived ? 'archive' : 'shoots'}"]`).click();
+    // An archived shoot's photo opens its page here, same as its row in the
+    // list below. The slideshow also shows final images from shoots that
+    // aren't archived yet, and those open on the Shoots tab.
+    if (!shoot.archived) document.querySelector('.tab[data-view="shoots"]').click();
     ed.openShootModal(shoot.id);
   });
 
-  document.getElementById('archiveFilterToggle').addEventListener('click', () => {
-    const filters = document.getElementById('archiveFilters');
-    filters.hidden = !filters.hidden;
-  });
-
+  // The category chips are always out (round 2): All, each category, and
+  // Edit (which categories show).
   document.getElementById('archiveFilters').addEventListener('click', (e) => {
     if (e.target.closest('.chip-manage')) {
-      document.getElementById('archiveFilters').hidden = true;
       ed.openCategoryVisibilityModal();
       return;
     }
     const chip = e.target.closest('.chip');
     if (!chip || !chip.dataset.filter) return;
     ed.archiveFilter = chip.dataset.filter;
-    document.getElementById('archiveFilters').hidden = true;
-    renderArchive();
+    ed.renderArchive();
   });
+};
+;
 
-  // Groups archived shoots into year > month buckets, most recent first, so
-  // a growing archive stays browsable instead of one long flat list.
-  // Undated shoots (no shoot date recorded) fall into their own trailing
-  // "Undated" bucket rather than disappearing. Same collapsible pill
-  // heading as the Shoots screen's status groups, nested one level for
-  // months — collapse state persists per year and per year+month.
+// ---- pages/archive/archive-list.js ----
+// The Archive's list: archived shoots by year, then by month, newest first.
+// Each year is a section title with how many shoots it has; each month is
+// one row (its name, how many shoots, a few of their covers). Tap a month to
+// see its shoots under it (each opens its recap), tap again to fold them
+// away. Undated shoots come last, listed under their own title.
+// (Loaded before app.js, which runs it in its turn.)
+window.EyeParts = window.EyeParts || {};
+window.EyeParts.addArchiveList = function addArchiveList(ed) {
+  Object.assign(ed, { renderArchive });
+  // The months showing their shoots, for as long as the app's open.
+  const openMonths = new Set();
+  const ROW_OPTS = { showBadge: false };
+
+  // A project box stands for several shoots.
+  const shootCount = items => items.reduce((n, item) => n + (item.kind === 'project' ? item.members.length : 1), 0);
+  const plural = n => `${n} ${n === 1 ? 'shoot' : 'shoots'}`;
+
+  // Up to three covers, overlapping, from the month's shoots that have one.
+  function coversHtml(items) {
+    const withPhoto = items.map((item) => {
+      if (item.kind !== 'project') return item.shoot;
+      return (item.rep && item.rep.projectPhoto) ? item.rep : item.members.find(s => s.projectPhoto);
+    }).filter(s => s && s.projectPhoto).slice(0, 3);
+    return withPhoto.map(s => `<span class="archive-month-cover">${ed.shootThumbHtml(s)}</span>`).join('');
+  }
+
   function renderArchive() {
     drawArchive();
     ed.repaginate('archive');
   }
+
   function drawArchive() {
-    renderArchiveSlideshow();
-    ed.renderCategoryFilterChips('archiveFilters', 'archiveFilterToggle', ed.archiveFilter);
+    ed.renderArchiveSlideshow();
+    const archived = ed.state.shoots.filter(s => s.archived);
+    ed.renderCategoryFilterChips('archiveFilters', 'archiveFilterToggle', ed.archiveFilter, new Set(archived.map(s => s.category)));
     const list = document.getElementById('archiveList');
     // Filter first, then collapse: a project box stands for the members that
     // match the active category filter (its date span covers just those).
     // It's filed by its rep's date (for a fully past project, its first day),
     // so it shows once, under one month, even when its days straddle a month
-    // or year boundary. Newest first, same as before.
-    let shoots = ed.state.shoots.filter(s => s.archived);
+    // or year boundary.
+    let shoots = archived;
     if (ed.archiveFilter !== 'all') shoots = shoots.filter(s => s.category === ed.archiveFilter);
     const items = ed.collapseProjects(shoots)
       .sort((a, b) => ed.dateSortKey(ed.listItemRep(b).date).localeCompare(ed.dateSortKey(ed.listItemRep(a).date)));
@@ -8774,60 +9036,64 @@ window.EyeParts.addArchive = function addArchive(ed) {
       if (!months.has(month)) months.set(month, []);
       months.get(month).push(item);
     });
-
     const sortedYears = [...years.keys()].sort((a, b) => {
       if (a === 'Undated') return 1;
       if (b === 'Undated') return -1;
       return b.localeCompare(a);
     });
 
-    let visibleYearIndex = 0;
     sortedYears.forEach(year => {
       const months = years.get(year);
       const sortedMonths = [...months.keys()].sort((a, b) => b.localeCompare(a));
-
+      const yearItems = [].concat(...sortedMonths.map(m => months.get(m)));
       const yearGroupEl = document.createElement('div');
       yearGroupEl.className = 'shoot-status-group';
-
       const yearHeading = document.createElement('h2');
-      yearHeading.className = `status-group-heading ${visibleYearIndex % 2 === 0 ? 'heading-yellow' : 'heading-navy'}`;
-      yearHeading.textContent = year;
-
+      yearHeading.className = 'status-group-heading';
+      yearHeading.innerHTML = `${ed.escapeHtml(year)} <span>${shootCount(yearItems)}</span>`;
       const yearRowsWrap = document.createElement('div');
       yearRowsWrap.className = 'shoot-status-rows';
 
       if (year === 'Undated') {
-        // Undated only ever has the one '00' month bucket anyway — a
-        // second "Undated" sub-heading under the "Undated" year heading
-        // is pure redundancy, so just list the shoots directly.
-        sortedMonths.forEach(month => {
-          months.get(month).forEach(item => ed.renderListItem(yearRowsWrap, item, { showBadge: false, openArchiveMode: true }));
-        });
+        // Undated only ever has the one '00' month, so its shoots are listed
+        // straight under the title.
+        yearItems.forEach(item => ed.renderListItem(yearRowsWrap, item, ROW_OPTS));
       } else {
-        let visibleMonthIndex = 0;
         sortedMonths.forEach(month => {
+          const key = `${year}-${month}`;
+          const monthItems = months.get(month);
+          const open = openMonths.has(key);
+          const row = document.createElement('button');
+          row.type = 'button';
+          row.className = 'archive-month';
+          row.setAttribute('aria-expanded', String(open));
+          row.innerHTML = `
+            <span class="archive-month-words">
+              <span class="archive-month-name">${ed.escapeHtml(ed.monthLabel(month))}</span>
+              <span class="archive-month-count">${plural(shootCount(monthItems))}</span>
+            </span>
+            <span class="archive-month-covers">${coversHtml(monthItems)}</span>`;
+          const rows = document.createElement('div');
+          rows.className = 'shoot-status-rows archive-month-rows';
+          rows.hidden = !open;
+          monthItems.forEach(item => ed.renderListItem(rows, item, ROW_OPTS));
+          row.addEventListener('click', () => {
+            const nowOpen = rows.hidden;
+            rows.hidden = !nowOpen;
+            row.setAttribute('aria-expanded', String(nowOpen));
+            if (nowOpen) openMonths.add(key);
+            else openMonths.delete(key);
+            ed.repaginate('archive');
+          });
           const monthGroupEl = document.createElement('div');
           monthGroupEl.className = 'archive-month-group';
-
-          const monthHeading = document.createElement('h3');
-          monthHeading.className = `status-group-heading archive-month-heading ${visibleMonthIndex % 2 === 0 ? 'heading-yellow' : 'heading-navy'}`;
-          monthHeading.textContent = ed.monthLabel(month);
-
-          const monthRowsWrap = document.createElement('div');
-          monthRowsWrap.className = 'shoot-status-rows';
-          months.get(month).forEach(item => ed.renderListItem(monthRowsWrap, item, { showBadge: false, openArchiveMode: true }));
-
-          monthGroupEl.appendChild(monthHeading);
-          monthGroupEl.appendChild(monthRowsWrap);
+          monthGroupEl.append(row, rows);
           yearRowsWrap.appendChild(monthGroupEl);
-          visibleMonthIndex++;
         });
       }
 
-      yearGroupEl.appendChild(yearHeading);
-      yearGroupEl.appendChild(yearRowsWrap);
+      yearGroupEl.append(yearHeading, yearRowsWrap);
       list.appendChild(yearGroupEl);
-      visibleYearIndex++;
     });
   }
 };
@@ -8998,108 +9264,51 @@ window.EyeParts.addJournal = function addJournal(ed) {
 ;
 
 // ---- pages/journal/journal-cards.js ----
-// The Journal list: the header band, an entry's card, entries by year and month.
+// Reflections: an entry's block (inside its week's card), and items by year
+// and month (the table of contents).
 // (Loaded before app.js, which runs it in its turn.)
 window.EyeParts = window.EyeParts || {};
 window.EyeParts.addJournalCards = function addJournalCards(ed) {
-  Object.assign(ed, { applyJournalHeaderBand, renderJournalEntryCard, renderYearMonthGroups });
-  // Sizes .journal-paper's --header-band (see the CSS) to this specific
-  // entry's actual title/date height, so the blank band above the ruling
-  // always fully covers it — a fixed guess would either crop a long wrapped
-  // title or leave excess blank space under a short one — and sits the
-  // heading on the first visible rule, at the bottom of that band. Reads as 0 (and is
-  // skipped) whenever the card isn't laid out yet — not just inside a
-  // collapsed month/year group, but even a fully-visible one: renderYear-
-  // MonthGroups builds a whole year's months and cards in memory before
-  // attaching that year to the live list in one shot, so every card is still
-  // a detached, unlaid-out node at the moment renderItem builds it,
-  // regardless of collapse state. Never call this from inside renderItem —
-  // it always reads 0 there. renderJournal's own post-pass (after
-  // renderYearMonthGroups returns, once the list is genuinely in the
-  // document) is what actually measures correctly for a visible entry;
-  // onReveal covers the collapsed-group case for everything left over.
-  function applyJournalHeaderBand(card) {
-    const heading = card.querySelector('.journal-entry-heading');
-    const paper = card.querySelector('.journal-paper');
-    if (!heading || !paper || !heading.offsetHeight) return;
-    // .journal-paper's own 14px top padding sits above the heading, plus a
-    // little extra room for open space above the title, snapped up to the
-    // ruled-line pattern's own existing line positions (21, 49, 77, 105px,
-    // ... — see .journal-paper's 22px background-position) so the band's
-    // bottom edge lands exactly on a real rule instead of slicing one in half.
-    const headingBottom = 14 + heading.offsetHeight;
-    const minBand = headingBottom + 8;
-    const band = Math.ceil((minBand - 21) / 28) * 28 + 21;
-    paper.style.setProperty('--header-band', band + 'px');
-    // The heading is whole 28px rows (see .journal-entry-heading), so this
-    // margin drops it to the bottom of the band: its last row sits right on
-    // the first visible rule, any extra title rows stack above it, and the
-    // entry's own text — which follows directly — starts on the first row
-    // below that rule. The leftover space lands above the title.
-    heading.style.marginTop = (band - headingBottom) + 'px';
-  }
-
-  // One entry, rendered inline on lined notebook paper under a coloured title
-  // banner — the same card shape the Log uses for a week, so the two kinds of
-  // entry read as one continuous scrolling page rather than a list of things
-  // to open.
+  Object.assign(ed, { renderJournalEntryCard, renderYearMonthGroups });
+  // An entry written by hand, inside the card of the week it was written in:
+  // "Journal entry, 28 Oct" (or the shoot it came from), its title and words,
+  // its photos, its tags, then Share as PDF and Delete (the same as its old
+  // options menu). Tap the words to open it. Resolves once its photos are in.
   function renderJournalEntryCard(container, e) {
-    const card = document.createElement('div');
-    card.className = 'card log-card journal-entry-card';
-    // Anchor the table of contents scrolls to (see scrollToJournalItem).
-    card.dataset.entryId = e.id;
-    // Alternates within the month it lands in, so collapsing a month never
-    // leaves two same-coloured banners stacked against each other.
-    const headingColorClass = container.children.length % 2 === 0 ? 'heading-yellow' : 'heading-navy';
+    const block = document.createElement('div');
+    block.className = 'journal-entry-card';
+    block.dataset.entryId = e.id;
     const linkedShoot = e.sourceShootId ? ed.state.shoots.find(s => s.id === e.sourceShootId) : null;
-    // Same "--- shoot name" credit the Log puts after each takeaway; this entry
-    // was compiled from that shoot's reflection, so it's the same attribution.
-    const credit = linkedShoot
-      ? `<span class="log-takeaway-source"> --- ${ed.escapeHtml(ed.shootDisplayName(linkedShoot))}</span>`
-      : '';
-    const tagsHtml = (e.tags || []).map(t => `<span class="beat-chip view-only">${ed.escapeHtml(t)}</span>`).join('');
-
-    card.innerHTML = `
-      <div class="log-week-heading ${headingColorClass} journal-entry-binding">
-        <button type="button" class="journal-entry-options" aria-label="Options">&#8942;</button>
+    const when = e.createdAt ? ed.rowDate(e.createdAt, ed.todayStr(), false) : '';
+    const label = ed.metaLine([linkedShoot ? `From ${ed.shootDisplayName(linkedShoot)}` : 'Journal entry', when]);
+    const tags = (e.tags || []).map(t => `#${String(t).replace(/^#/, '')}`).join(' ');
+    block.innerHTML = `
+      <div class="journal-entry-words">
+        <span class="log-label">${ed.escapeHtml(label)}</span>
+        ${e.title ? `<p class="journal-entry-title">${ed.escapeHtml(e.title)}</p>` : ''}
+        <p class="journal-entry-text">${ed.escapeHtml(e.body || '')}</p>
       </div>
-      <div class="journal-paper log-paper">
-        <div class="journal-entry-heading">
-          <span class="journal-entry-title">${ed.escapeHtml(e.title || 'Untitled entry')}</span>
-          <span class="journal-entry-date">${ed.prettyDate(e.createdAt)}</span>
-        </div>
-        <div class="journal-entry-body"><div class="jb-in">${ed.escapeHtml(e.body || '')}${credit}</div></div>
-        <div class="journal-entry-images moodboard-grid" hidden></div>
-        <div class="journal-entry-tags"${tagsHtml ? '' : ' hidden'}>${tagsHtml}</div>
+      <div class="journal-entry-images moodboard-grid" hidden></div>
+      <p class="journal-entry-tags"${tags ? '' : ' hidden'}>${ed.escapeHtml(tags)}</p>
+      <div class="journal-entry-actions">
+        <button type="button" class="journal-entry-act" data-act="pdf"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 3v12"/><polyline points="7 8 12 3 17 8"/><path d="M5 13v7h14v-7"/></svg>Share as PDF</button>
+        <button type="button" class="journal-entry-act journal-entry-act-quiet" data-act="delete">Delete</button>
       </div>
     `;
-
-    const paper = card.querySelector('.journal-paper');
-    if (linkedShoot) {
-      // Auto-compiled entries are never edited here — they route back to the
-      // shoot's own reflection fields so the two stay in sync. Reuses the Log's
-      // "this refers to" popup rather than a confirm(), so tapping a reflection
-      // behaves exactly like tapping a weekly log takeaway.
-      paper.addEventListener('click', () => ed.showLogShootRef(e.sourceShootId));
-    } else {
-      // Hand-written entries open straight into the editor: the body is already
-      // fully readable right here, so a read-only stop on the way would be a
-      // popup that shows you what you're already looking at.
-      paper.addEventListener('click', () => ed.openJournalModal(e.id, 'edit'));
-    }
-
-    card.querySelector('.journal-entry-options').addEventListener('click', (ev) => {
-      ev.stopPropagation();
-      ed.openJournalOptions(e.id);
+    block.querySelector('.journal-entry-words').addEventListener('click', () => {
+      if (linkedShoot) ed.showLogShootRef(e.sourceShootId);
+      else ed.openJournalModal(e.id, 'edit');
     });
-
-    container.appendChild(card);
-    // Returned (not fire-and-forget) so scrollToJournalItem can wait for
-    // every card's cover photos to finish loading before it scrolls — those
-    // load from IndexedDB asynchronously and would otherwise grow cards
-    // above the target after the scroll already landed, shoving it back out
-    // of view.
-    return ed.renderJournalListImages(card.querySelector('.journal-entry-images'), ed.journalEntryImagesKey(e));
+    // Through the options sheet's own buttons (pages/journal/entry-options.js,
+    // entry-pdf.js), so they work the same: Delete still asks first.
+    block.querySelector('.journal-entry-actions').addEventListener('click', (ev) => {
+      const btn = ev.target.closest('[data-act]');
+      if (!btn) return;
+      ed.optionsJournalEntryId = e.id;
+      document.getElementById(btn.dataset.act === 'pdf' ? 'shareJournalOptionBtn' : 'deleteJournalOptionBtn').click();
+    });
+    container.appendChild(block);
+    return ed.renderJournalListImages(block.querySelector('.journal-entry-images'), ed.journalEntryImagesKey(e));
   }
 
   // Collapsible year > month nesting for the Journal (and its table of
@@ -9213,7 +9422,7 @@ window.EyeParts.addJournalCards = function addJournalCards(ed) {
 ;
 
 // ---- pages/journal/journal-list.js ----
-// The Journal list: its order, filters and feed, and drawing it.
+// Reflections: its order, filter and feed, and drawing it week by week.
 // (Loaded before app.js, which runs it in its turn.)
 window.EyeParts = window.EyeParts || {};
 window.EyeParts.addJournalList = function addJournalList(ed) {
@@ -9290,25 +9499,16 @@ window.EyeParts.addJournalList = function addJournalList(ed) {
     return merged;
   }
 
-  function renderJournalFeedItem(container, item) {
-    if (item.type === 'week') return ed.renderLogWeekCard(container, item.week);
-    return ed.renderJournalEntryCard(container, item.entry);
-  }
-
-  // Nested by year > month of each item's own date (an entry's createdAt, a
-  // log week's start) — same grouping structure Archive uses for shoots.
-  // Returns a promise that resolves once every card's cover photos have
-  // finished loading (see renderJournalEntryCard) — most callers can ignore
-  // it, but scrollToJournalItem needs it so the layout has stopped shifting
-  // before it scrolls.
+  // One card per week, newest first (weekly-log.js): its shoots' rows, then
+  // anything written by hand that week. Returns a promise that resolves once
+  // every entry's photos are in: scrollToJournalItem waits for it so the page
+  // has stopped moving before it scrolls.
   function renderJournal() {
     const photos = drawJournal();
     ed.repaginate('journal');
     return photos.then((done) => { ed.repaginate('journal'); return done; });
   }
   function drawJournal() {
-    // Sorted before grouping, because renderYearMonthGroups keeps whatever
-    // order it's handed.
     const items = journalFeedItems();
 
     const list = document.getElementById('journalList');
@@ -9324,21 +9524,19 @@ window.EyeParts.addJournalList = function addJournalList(ed) {
           : "No weekly log yet. It fills in on its own once a shoot is marked captured.";
     }
 
-    const imagePromises = ed.renderYearMonthGroups(list, items, {
-      dateOf: item => item.date,
-      keyPrefix: 'journal',
-      renderItem: renderJournalFeedItem,
-      // Covers a card in a month/year that's still collapsed at this point —
-      // it stays genuinely unmeasurable (real height 0) until the group
-      // holding it is actually opened, which is what this re-runs for.
-      onReveal: wrap => wrap.querySelectorAll('.journal-entry-card').forEach(ed.applyJournalHeaderBand),
+    // The items are newest first already, so each week turns up in order.
+    const weeks = new Map();
+    const undated = [];
+    items.forEach((item) => {
+      if (!item.date) { undated.push(item.entry); return; }
+      const start = ed.shootWeekWindow(item.date).start;
+      const key = ed.formatDate(start);
+      if (!weeks.has(key)) weeks.set(key, { start, week: null, entries: [] });
+      if (item.type === 'week') weeks.get(key).week = item.week;
+      else weeks.get(key).entries.push(item.entry);
     });
-    // Every card just built is a real, attached, laid-out node now — each
-    // year's whole subtree (months, cards, all of it) only gets appended to
-    // `list` at the very end of building that year (see renderYearMonth-
-    // Groups), so nothing in it could be measured correctly any earlier than
-    // this, not even a card in a section that's expanded by default.
-    list.querySelectorAll('.journal-entry-card').forEach(ed.applyJournalHeaderBand);
+    const imagePromises = [...weeks.values()].map(w => ed.renderWeekCard(list, w.start, w.week, w.entries));
+    if (undated.length) imagePromises.push(ed.renderWeekCard(list, null, null, undated));
     return Promise.all(imagePromises);
   }
 };
@@ -9397,11 +9595,14 @@ window.EyeParts.addJournalContents = function addJournalContents(ed) {
 ;
 
 // ---- pages/journal/weekly-log.js ----
-// The Journal's weekly log (a recap it writes itself).
+// Reflections' weekly log (a recap it writes itself): the weeks with a shoot
+// in them, and each week as a card (This week, Last week, else its dates)
+// with a row per shoot: its cover, its name and day, the lesson it left, and
+// View shoot. The Monday brief shows last week's rows too.
 // (Loaded before app.js, which runs it in its turn.)
 window.EyeParts = window.EyeParts || {};
 window.EyeParts.addJournalWeeklyLog = function addJournalWeeklyLog(ed) {
-  Object.assign(ed, { weekRangeLabel, computeWeeklyLog, logTakeaways, showLogShootRef, logWeekPaperHtml, wireLogShootRefs, renderLogWeekCard });
+  Object.assign(ed, { shootWeekWindow, weekRangeLabel, computeWeeklyLog, logTakeaways, showLogShootRef, openLogShoot, logShootRowsHtml, wireLogShootRefs, renderWeekCard });
   // ---------- Journal weekly log (auto-generated recap) ----------
   // Fully derived from state.shoots — nothing here is persisted, so editing
   // a shoot's category or lessons-learned later just updates the log the
@@ -9417,13 +9618,9 @@ window.EyeParts.addJournalWeeklyLog = function addJournalWeeklyLog(ed) {
     return { start, end };
   }
 
+  // "2 to 8 Nov" (row-words.js), the year added when it isn't this one.
   function weekRangeLabel(start, end) {
-    const startMonth = ed.MONTH_NAMES[start.getMonth()].slice(0, 3);
-    const endMonth = ed.MONTH_NAMES[end.getMonth()].slice(0, 3);
-    if (start.getMonth() === end.getMonth()) {
-      return `${startMonth} ${start.getDate()}–${end.getDate()}, ${end.getFullYear()}`;
-    }
-    return `${startMonth} ${start.getDate()} – ${endMonth} ${end.getDate()}, ${end.getFullYear()}`;
+    return ed.rowDateRange(ed.formatDate(start), ed.formatDate(end), ed.todayStr());
   }
 
   function computeWeeklyLog() {
@@ -9481,8 +9678,11 @@ window.EyeParts.addJournalWeeklyLog = function addJournalWeeklyLog(ed) {
 
   document.getElementById('logShootRefViewBtn').addEventListener('click', () => {
     document.getElementById('logShootRefOverlay').hidden = true;
-    const shootId = logShootRefId;
-    if (!shootId) return;
+    if (logShootRefId) openLogShoot(logShootRefId);
+  });
+
+  // A shoot from the log, opened on its Reflection page.
+  function openLogShoot(shootId) {
     const s = ed.state.shoots.find(x => x.id === shootId);
     if (!s) return;
     // Asked from the Monday brief's copy of the week, which would otherwise
@@ -9496,61 +9696,76 @@ window.EyeParts.addJournalWeeklyLog = function addJournalWeeklyLog(ed) {
     ed.showPostShootContentExpanded();
     ed.showShootPage('postShootHeading');
     ed.updateShootModalTitleFromScroll();
-  });
+  }
 
   document.getElementById('logShootRefOverlay').addEventListener('click', (e) => {
     if (e.target === e.currentTarget) e.currentTarget.hidden = true;
   });
 
-  // A week's page of the Log: its shoots and takeaways on the lined paper.
-  // The Monday brief shows last week's too, under labels of its own (on a
-  // Monday, "this week" is the new one).
-  function logWeekPaperHtml(w, shootsLabel, noTakeawaysText) {
-    const shootsHtml = w.shoots.map(s =>
-      `<li data-shoot-id="${s.id}">${ed.escapeHtml(ed.shootDisplayName(s))} <span class="log-shoot-category">(${ed.escapeHtml(ed.CATEGORY_LABELS[s.category] || 'Uncategorized')})</span></li>`
-    ).join('');
-    const takeawaysHtml = w.takeaways.length
-      // Each takeaway is credited to its shoot inline, so the list still reads
-      // as attributed even before you tap through to confirm which one.
-      ? `<ul class="log-takeaways">${w.takeaways.map(t => {
-          const from = ed.shootDisplayName(ed.state.shoots.find(x => x.id === t.shootId) || {});
-          const credit = from ? `<span class="log-takeaway-source"> --- ${ed.escapeHtml(from)}</span>` : '';
-          return `<li data-shoot-id="${t.shootId}">${ed.escapeHtml(t.text)}${credit}</li>`;
-        }).join('')}</ul>`
-      : `<p class="log-no-takeaways">${noTakeawaysText}</p>`;
-    return `
-      <div class="journal-paper log-paper">
-        <p class="log-section-label">${shootsLabel}</p>
-        <ul class="log-shoots">${shootsHtml}</ul>
-        <p class="log-section-label">Takeaways</p>
-        ${takeawaysHtml}
-      </div>
-    `;
+  const CHEVRON = '<svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><polyline points="9 5 16 12 9 19"/></svg>';
+  const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+
+  // A week's shoots, a row each: its cover, its name and day, the lesson it
+  // left (one line breaks collapsed, as in logTakeaways) or that there isn't
+  // one yet, and View shoot.
+  function logShootRowsHtml(w) {
+    const today = ed.todayStr();
+    return w.shoots.map((s) => {
+      const lesson = (s.lessonsLearned || '').replace(/\s*\n+\s*/g, ' ').trim();
+      return `
+        <div class="log-shoot-row">
+          <span class="log-thumb">${ed.shootThumbHtml(s)}</span>
+          <div class="log-shoot-body">
+            <span class="log-label">${ed.escapeHtml(ed.metaLine([ed.shootDisplayName(s), ed.rowDate(s.date, today, false)]))}</span>
+            <span class="log-lesson${lesson ? '' : ' log-lesson-none'}">${ed.escapeHtml(lesson || 'No lesson written yet.')}</span>
+            <button type="button" class="log-view-shoot" data-shoot-id="${ed.escapeHtml(s.id)}">View shoot ${CHEVRON}</button>
+          </div>
+        </div>`;
+    }).join('');
   }
 
   function wireLogShootRefs(card) {
-    card.querySelectorAll('.log-shoots li[data-shoot-id], .log-takeaways li[data-shoot-id]').forEach(li => {
-      li.addEventListener('click', () => showLogShootRef(li.dataset.shootId));
+    card.querySelectorAll('.log-view-shoot[data-shoot-id]').forEach(btn => {
+      btn.addEventListener('click', () => openLogShoot(btn.dataset.shootId));
     });
   }
 
-  // One week of the Log, on the same lined notebook paper the written entries
-  // use — the Log is the other half of the same journal, so it reads as
-  // written on the same pad rather than as a report about it.
-  function renderLogWeekCard(container, w) {
+  // The card's title: This week, Last week, else its dates ("2 to 8 Nov").
+  function weekTitle(start, range) {
+    const thisWeek = shootWeekWindow(ed.todayStr()).start;
+    const lastWeek = new Date(thisWeek);
+    lastWeek.setDate(thisWeek.getDate() - 7);
+    const startStr = ed.formatDate(start);
+    if (startStr === ed.formatDate(thisWeek)) return 'This week';
+    if (startStr === ed.formatDate(lastWeek)) return 'Last week';
+    return range;
+  }
+
+  // One week as a card: This week, Last week, or its dates, with its dates
+  // or how many shoots (or entries) beside; its shoots, then the entries
+  // written that week (renderJournalEntryCard). week is null for a week
+  // with entries and no shoot; start is null for entries with no date.
+  // Resolves once the entries' photos are in.
+  function renderWeekCard(container, start, week, entries) {
+    let range = '';
+    if (start) {
+      const end = new Date(start);
+      end.setDate(start.getDate() + 6);
+      range = weekRangeLabel(start, end);
+    }
+    const startStr = start ? ed.formatDate(start) : '';
+    const title = start ? weekTitle(start, range) : 'Undated';
+    const count = week ? plural(week.shoots.length, 'shoot', 'shoots') : plural(entries.length, 'entry', 'entries');
     const card = document.createElement('div');
     card.className = 'card log-card';
     // Anchor the table of contents scrolls to (see scrollToJournalItem).
-    card.dataset.weekKey = ed.formatDate(w.start);
-    // Alternates within the month it lands in, so collapsing a month never
-    // leaves two same-coloured banners stacked against each other.
-    const headingColorClass = container.children.length % 2 === 0 ? 'heading-yellow' : 'heading-navy';
+    if (week) card.dataset.weekKey = startStr;
     card.innerHTML = `
-      <p class="log-week-heading ${headingColorClass}">${ed.escapeHtml(w.label)}</p>
-      ${logWeekPaperHtml(w, 'Shoots this week', 'No takeaways logged this week.')}
-    `;
+      <div class="log-week-head"><h3 class="log-week-heading">${ed.escapeHtml(title)}</h3><span class="log-week-meta">${ed.escapeHtml(range && title !== range ? range : count)}</span></div>
+      ${week ? logShootRowsHtml(week) : ''}`;
     wireLogShootRefs(card);
     container.appendChild(card);
+    return Promise.all(entries.map(e => ed.renderJournalEntryCard(card, e)));
   }
 };
 ;
@@ -10170,7 +10385,7 @@ window.EyeParts.addShootOverthoughtsNotes = function addShootOverthoughtsNotes(e
 // (Loaded before app.js, which runs it in its turn.)
 window.EyeParts = window.EyeParts || {};
 window.EyeParts.addShootPastTalents = function addShootPastTalents(ed) {
-  Object.assign(ed, { refreshPastTalentsSelect });
+  Object.assign(ed, { refreshPastTalentsSelect, openManageTalentsModal });
   // ---------- Talent popup (name/handles/photo + a "returning talent" picker) ----------
   // talentModalTargetIdx: index into currentTalents being edited, or null
   // while adding a new one. talentModalDraft holds the in-progress edits —
@@ -10219,7 +10434,7 @@ window.EyeParts.addShootPastTalents = function addShootPastTalents(ed) {
     const select = document.getElementById('pastTalentsSelect');
     select.innerHTML = '<option value="">Select a past talent…</option>'
       + ed.pastTalentSamples.map((t, i) => `<option value="${i}">${ed.escapeHtml(t.name)}</option>`).join('')
-      + '<option value="__manage__">Manage saved…</option>';
+      + '<option value="__manage__">Edit saved talent…</option>';
   }
 
   document.getElementById('pastTalentsSelect').addEventListener('change', (e) => {
@@ -10535,7 +10750,7 @@ window.EyeParts.addShootTeam = function addShootTeam(ed) {
 // (Loaded before app.js, which runs it in its turn.)
 window.EyeParts = window.EyeParts || {};
 window.EyeParts.addShootTeamMemberPopup = function addShootTeamMemberPopup(ed) {
-  Object.assign(ed, { openTeamMemberModal, getTeamRequiredChoice, setTeamRequiredChoice });
+  Object.assign(ed, { openTeamMemberModal, getTeamRequiredChoice, setTeamRequiredChoice, openManageTeamMembersModal });
   // ---------- Team member popup (name/role/handle + a "returning member" picker) ----------
   // The member being edited (null when adding one) — the member itself, not
   // its place in the list: an Undo of a removal can put someone back in
@@ -10587,7 +10802,7 @@ window.EyeParts.addShootTeamMemberPopup = function addShootTeamMemberPopup(ed) {
     const select = document.getElementById('pastTeamMembersSelect');
     select.innerHTML = '<option value="">Select a past team member…</option>'
       + pastTeamMemberSamples.map((tm, i) => `<option value="${i}">${ed.escapeHtml(tm.name)}</option>`).join('')
-      + '<option value="__manage__">Manage saved…</option>';
+      + '<option value="__manage__">Edit saved team…</option>';
   }
 
   document.getElementById('pastTeamMembersSelect').addEventListener('change', (e) => {
@@ -11463,7 +11678,7 @@ window.EyeParts.addShootLightingSuggestions = function addShootLightingSuggestio
     }
     // Manage leads the list, and every match is listed (the box scrolls past
     // its max-height) rather than a capped handful with Manage buried last.
-    box.innerHTML = '<button type="button" class="lighting-setup-suggestion lighting-setup-suggestion-manage">Manage saved…</button>'
+    box.innerHTML = '<button type="button" class="lighting-setup-suggestion lighting-setup-suggestion-manage">Edit saved lighting…</button>'
       + matches.map((item, i) => `
       <button type="button" class="lighting-setup-suggestion" data-idx="${idx}" data-match="${i}">${ed.escapeHtml(item.name)}</button>
     `).join('');
@@ -11868,7 +12083,7 @@ window.EyeParts.addShootLighting = function addShootLighting(ed) {
 // (Loaded before app.js, which runs it in its turn.)
 window.EyeParts = window.EyeParts || {};
 window.EyeParts.addShootLocation = function addShootLocation(ed) {
-  Object.assign(ed, { updateLocationBtnDisplay });
+  Object.assign(ed, { updateLocationBtnDisplay, openManageLocationsModal });
   // ---------- Location (popup with name/street/city/zip/country + past locations) ----------
   ed.currentShootLocation = { name: '', street: '', city: '', state: '', zip: '', country: '' };
   ed.pastLocationSamples = [];
@@ -11946,7 +12161,7 @@ window.EyeParts.addShootLocation = function addShootLocation(ed) {
     const select = document.getElementById('pastLocationsSelect');
     select.innerHTML = '<option value="">Select a past location…</option>'
       + ed.pastLocationSamples.map((loc, i) => `<option value="${i}">${ed.escapeHtml(ed.formatLocationDisplay(loc))}</option>`).join('')
-      + '<option value="__manage__">Manage locations…</option>';
+      + '<option value="__manage__">Edit saved locations…</option>';
   }
 
   function openLocationModal() {
@@ -12555,7 +12770,6 @@ window.EyeParts.addShootDeadlinePrompt = function addShootDeadlinePrompt(ed) {
     const shoot = ed.editingShootId ? ed.state.shoots.find(s => s.id === ed.editingShootId) : null;
     const isArchived = !!(shoot && shoot.archived);
     document.getElementById('enterShootModeBtn').hidden = !ed.editingShootId || isArchived || status !== 'waiting_to_shoot';
-    document.getElementById('enterArchiveModeBtn').hidden = !ed.editingShootId || !isArchived;
   }
 
   document.getElementById('shootStatus').addEventListener('change', (e) => {
@@ -12912,7 +13126,7 @@ window.EyeParts.addShootChapterPages = function addShootChapterPages(ed) {
 ;
 
 // ---- pages/shoot/chapter.js ----
-// A shoot as a chapter: showing a page, and the bar and menus under it.
+// A shoot as a chapter: showing a page, and its More menu.
 // (Loaded before app.js, which runs it in its turn.)
 window.EyeParts = window.EyeParts || {};
 window.EyeParts.addShootChapter = function addShootChapter(ed) {
@@ -12936,57 +13150,27 @@ window.EyeParts.addShootChapter = function addShootChapter(ed) {
     });
   }
 
-  // Scrolls to a section (the first one is the top of the page). opts.turn:
-  // asked for by a tap, so it glides there.
+  // 'front' is the front page (pages/shoot/shoot-front.js); any other id
+  // is that part of the form, on a page of its own. A part that isn't there
+  // (the reflection before the shoot) gives the front page with opts.orFirst.
   function showShootPage(id, opts = {}) {
+    if (id === 'front') { ed.showShootFront(); return; }
     const pages = ed.availableShootPages();
     if (!pages.some(p => p.id === id)) {
-      if (!opts.orFirst) return;
-      id = pages[0].id;
+      if (opts.orFirst) ed.showShootFront();
+      return;
     }
     ed.shootWanted = null;
     ed.shootPageId = id;
     ed.shootSub = 0;
     if (ed.currentShootId) ed.shootPageMemory[ed.currentShootId] = { id, sub: 0 };
     ed.shootPageEls.forEach(({ el }) => el.classList.remove('nb-off'));
+    ed.showShootDetail(id);
     ed.drawShootSub();
     ed.drawShootPageNumber();
     ed.updateShootRunningHead();
-    // Boxes that were out of sight may have measured nothing.
-    ed.autoSizeAllListTextareas();
-    ed.syncAllShootFormFields();
-    const modal = ed.shootModalOverlay.querySelector('.modal');
-    const head = document.getElementById(id);
-    const top = id === pages[0].id || !head ? 0
-      : modal.scrollTop + head.getBoundingClientRect().top - modal.getBoundingClientRect().top - parseFloat(getComputedStyle(modal).paddingTop);
-    modal.scrollTo({ top: Math.max(0, top), behavior: opts.turn && ed.motionOk() ? 'smooth' : 'auto' });
     if (ed.shootBreakWatch) ed.shootBreakWatch.takeRecords();
   }
-
-  // Scrolled by hand: the section at the top of the page is the one it's on.
-  (function followShootScroll() {
-    const modal = ed.shootModalOverlay.querySelector('.modal');
-    let due = false;
-    modal.addEventListener('scroll', () => {
-      if (due) return;
-      due = true;
-      setTimeout(() => {
-        due = false;
-        if (ed.shootModalOverlay.hidden || ed.shootWizardActive || ed.shootWizardPendingId) return;
-        const line = modal.getBoundingClientRect().top + modal.clientHeight / 3;
-        let on = null;
-        ed.availableShootPages().forEach(({ id }) => {
-          const head = document.getElementById(id);
-          if (head && head.getBoundingClientRect().top <= line) on = id;
-        });
-        on = on || ed.availableShootPages()[0].id;
-        if (on === ed.shootPageId) return;
-        ed.shootPageId = on;
-        if (ed.currentShootId) ed.shootPageMemory[ed.currentShootId] = { id: on, sub: 0 };
-        ed.drawShootPageNumber();
-      }, 120);
-    }, { passive: true });
-  })();
 
   ed.shootForm.addEventListener('input', (e) => { if (e.target.id === 'shootTitle') ed.updateShootRunningHead(); });
   // Anything that adds to a page or takes from it breaks the pages again.
@@ -13004,34 +13188,19 @@ window.EyeParts.addShootChapter = function addShootChapter(ed) {
   // page is the open one when it goes, the book falls back to the first page.
   new MutationObserver(() => {
     if (ed.shootModalOverlay.hidden) return;
-    if (document.getElementById('postShootContent').hidden && ed.shootPageId === 'postShootHeading') showShootPage('basicInfoHeading');
+    if (document.getElementById('postShootContent').hidden && !ed.shootOnFront && ed.shootPageId === 'postShootHeading') showShootPage('front');
     else { ed.queueShootBreak(); ed.drawShootPageNumber(); }
   }).observe(document.getElementById('postShootContent'), { attributes: true, attributeFilter: ['hidden'] });
 
-  // The bottom bar stands in for the buttons that used to sit on the page.
-  // They're still there (hidden) and still decide when they apply, so each
-  // bar button simply follows its original.
-  [
-    ['nbBarShootMode', 'enterShootModeBtn'],
-    ['nbBarComplete', 'completeShootBtn'],
-    ['nbBarUnarchive', 'unarchiveShootBtn'],
-  ].forEach(([barId, realId]) => {
-    const barBtn = document.getElementById(barId);
-    const real = document.getElementById(realId);
-    const follow = () => { barBtn.hidden = real.hidden; };
-    follow();
-    new MutationObserver(follow).observe(real, { attributes: true, attributeFilter: ['hidden'] });
-    barBtn.addEventListener('click', () => real.click());
-  });
-  document.getElementById('nbBarBack').addEventListener('click', () => {
-    ed.shootModalOverlay.querySelector('[data-close="shoot"]').click();
-  });
+  // The buttons that used to sit on the page are still there (hidden) and
+  // still decide when they apply: the next step button (next-step.js)
+  // presses them. More is the band's right button.
   (function setupShootMoreMenu() {
     const overlay = document.getElementById('shootMoreOverlay');
     const close = () => { overlay.hidden = true; };
     const share = document.getElementById('shareShootBtn');
     const del = document.getElementById('deleteShootBtn');
-    document.getElementById('nbBarMore').addEventListener('click', () => {
+    document.getElementById('shootBandMore').addEventListener('click', () => {
       document.getElementById('shootMoreShareBtn').hidden = share.hidden;
       document.getElementById('shootMoreShareDivider').hidden = share.hidden;
       document.getElementById('shootMoreDeleteBtn').hidden = del.hidden;
@@ -13106,13 +13275,17 @@ window.EyeParts.addNewShootWizardSteps = function addNewShootWizardSteps(ed) {
   }
 
   const SHOOT_WIZARD_STEPS = [
+    // The status is the tag on the shoot's page, so the guide doesn't ask it.
     {
       key: 'basics',
       title: 'The basics',
       blocks: () => [
-        shootWizardBlock('shootStatus', '.status-swatch-wrap'),
         shootWizardBlock('shootTitle', 'label'),
         shootWizardBlock('shootCategory', 'label'),
+        shootWizardBlock('shootDate', 'label'),
+        shootWizardBlock('dateNotSetBtn'),
+        shootWizardBlock('multiDayRow'),
+        shootWizardBlock('multiDayLastDayLabel'),
       ],
     },
     {
@@ -13123,12 +13296,10 @@ window.EyeParts.addNewShootWizardSteps = function addNewShootWizardSteps(ed) {
     },
     {
       key: 'when',
-      title: 'Date & time',
-      // Last day and the video call times keep showing/hiding themselves.
+      title: 'Time',
+      hint: 'When it starts and wraps.',
+      // The video call times keep showing/hiding themselves.
       blocks: () => [
-        shootWizardBlock('shootDate', 'label'),
-        shootWizardBlock('multiDayRow'),
-        shootWizardBlock('multiDayLastDayLabel'),
         shootWizardBlock('shootStartTime', '.time-range-row'),
         shootWizardBlock('videoCallTimesRow'),
       ],
@@ -13139,6 +13310,7 @@ window.EyeParts.addNewShootWizardSteps = function addNewShootWizardSteps(ed) {
       hint: "Where it's happening, and anything people need to know to find it.",
       blocks: () => [
         shootWizardBlock('shootLocationBtn', 'label'),
+        shootWizardBlock('locationNotSetBtn'),
         shootWizardBlock('shootLocationDirections', 'label'),
       ],
     },
@@ -13254,36 +13426,90 @@ window.EyeParts.addNewShootWizardSteps = function addNewShootWizardSteps(ed) {
       hint: "When everything's due, if there's a date to hit.",
       blocks: () => [shootWizardBlock('shootDeadline', 'label')],
     },
-    {
-      key: 'finish',
-      title: 'All set',
-      hint: 'Everything you filled in is already on the shoot page. Add to it or change it there anytime.',
-      blocks: () => [],
-    },
   ]; ed.SHOOT_WIZARD_STEPS = SHOOT_WIZARD_STEPS;
 };
 ;
 
+// ---- pages/new-shoot/guide-chapters.js ----
+// The new shoot guide's seven chapters, the same as a shoot's parts
+// (components/shoot-stage.js): which of the guide's steps (wizard-steps.js)
+// each one asks, and the chapter marks along its top.
+// (Loaded before app.js, which runs it in its turn.)
+window.EyeParts = window.EyeParts || {};
+window.EyeParts.addNewShootGuideChapters = function addNewShootGuideChapters(ed) {
+  Object.assign(ed, { guideChapter, guideChapterParts, drawGuideMarks, addGuidePartHead, clearGuidePartHeads, guidePartIsChapter });
+
+  // title comes from the shoot's parts; question is the line under it.
+  const GUIDE_CHAPTERS = [
+    { key: 'basics', parts: ['basics', 'talent'], question: "What's the shoot, when is it, and who's in it?" },
+    { key: 'logistics', parts: ['when', 'location'], question: 'When it starts, and where it happens.' },
+    { key: 'team', parts: ['team'], question: "Who's working with you on this one?" },
+    { key: 'direction', parts: ['goals', 'idea', 'story'], question: "What it's for, and the idea behind it." },
+    { key: 'visuals', parts: ['moodboard', 'references', 'lighting'], question: 'How it should look.' },
+    { key: 'shotList', parts: ['shotList', 'directions'], question: 'Every shot you want to come away with.' },
+    { key: 'deadline', parts: ['deadline'], question: "When everything's due, if there's a date to hit." },
+  ].map(ch => ({ ...ch, title: ed.SETUP_CHAPTERS.find(c => c.key === ch.key).label }));
+  ed.GUIDE_CHAPTERS = GUIDE_CHAPTERS;
+
+  function guideChapter(key) {
+    return GUIDE_CHAPTERS.find(ch => ch.key === key) || null;
+  }
+
+  // The steps of a chapter that apply to this shoot (the story, say, only
+  // to a narrative one).
+  function guideChapterParts(chapter) {
+    return chapter.parts.map(key => ed.SHOOT_WIZARD_STEPS.find(step => step.key === key))
+      .filter(step => step && (!step.when || step.when()));
+  }
+
+  // Seven marks on a hairline: done ones solid, this one larger with a mango
+  // dot, the rest open rings. The line is ink up to this chapter.
+  function drawGuideMarks(at, doneKeys) {
+    document.getElementById('shootWizardMarks').innerHTML = GUIDE_CHAPTERS.map((ch, i) => {
+      const cls = i === at ? 'now' : doneKeys.includes(ch.key) ? 'done' : '';
+      const line = i ? `<span class="guide-line${i <= at ? ' inked' : ''}"></span>` : '';
+      return `${line}<span class="guide-mark ${cls}"></span>`;
+    }).join('');
+  }
+
+  // A step named the same as its chapter ("The basics" in Basics) doesn't
+  // say it again.
+  function guidePartIsChapter(step, chapter) {
+    const title = typeof step.title === 'function' ? step.title() : step.title;
+    return title.replace(/^the /i, '').toLowerCase() === chapter.title.toLowerCase();
+  }
+
+  // A chapter of several steps names each one above its fields.
+  function addGuidePartHead(step, body) {
+    const head = document.createElement('div');
+    head.className = 'guide-part-head guide-chrome';
+    const title = typeof step.title === 'function' ? step.title() : step.title;
+    const hint = (typeof step.hint === 'function' ? step.hint() : step.hint) || '';
+    head.innerHTML = `<h3 class="guide-part-title">${ed.escapeHtml(title)}</h3>${hint ? `<p class="guide-part-hint">${ed.escapeHtml(hint)}</p>` : ''}`;
+    body.appendChild(head);
+  }
+  function clearGuidePartHeads(body) {
+    body.querySelectorAll(':scope > .guide-part-head').forEach(el => el.remove());
+  }
+};
+;
+
 // ---- pages/new-shoot/wizard.js ----
-// The new-shoot guide: going through its steps.
+// The new shoot guide: going through its chapters (guide-chapters.js), each
+// showing its steps' fields from the page.
 // (Loaded before app.js, which runs it in its turn.)
 window.EyeParts = window.EyeParts || {};
 window.EyeParts.addNewShootWizard = function addNewShootWizard(ed) {
+  const CHEVRON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 5 16 12 9 19"/></svg>';
   Object.assign(ed, { adjacentShootWizardStep, blurShootWizardFocus, restoreShootWizardBlocks, refreshShootWizard, showShootWizardStep, syncShootWizardViewport, setShootPageInert, startShootWizard, queueShootWizard, startQueuedShootWizard });
-  // The slides that currently apply (the one on screen always counts, so the
-  // "Step x of y" line can never lose its own place).
-  function shootWizardStepsInPlay() {
-    return ed.SHOOT_WIZARD_STEPS.filter(step => step.key === ed.shootWizardStepKey || !step.when || step.when());
-  }
-
-  // The nearest slide that applies before (-1) or after (+1) the current
-  // one, or null at either end. Re-evaluated every time, since slide 1's
-  // category decides whether The story applies at all.
+  // The chapter before (-1) or after (+1) this one, or null at either end,
+  // or when the guide was opened for just this one chapter.
   function adjacentShootWizardStep(direction) {
-    const from = ed.SHOOT_WIZARD_STEPS.findIndex(step => step.key === ed.shootWizardStepKey);
-    for (let i = from + direction; i >= 0 && i < ed.SHOOT_WIZARD_STEPS.length; i += direction) {
-      const step = ed.SHOOT_WIZARD_STEPS[i];
-      if (!step.when || step.when()) return step;
+    if (ed.shootWizardOnly) return null;
+    const chapters = ed.GUIDE_CHAPTERS;
+    const from = chapters.findIndex(ch => ch.key === ed.shootWizardStepKey);
+    for (let i = from + direction; i >= 0 && i < chapters.length; i += direction) {
+      if (ed.guideChapterParts(chapters[i]).length) return chapters[i];
     }
     return null;
   }
@@ -13323,35 +13549,30 @@ window.EyeParts.addNewShootWizard = function addNewShootWizard(ed) {
       if (placeholder.parentNode) placeholder.replaceWith(el);
     });
     ed.shootWizardMoved = [];
-    const step = ed.SHOOT_WIZARD_STEPS.find(s => s.key === ed.shootWizardStepKey);
-    if (step && step.leave) step.leave();
+    ed.clearGuidePartHeads(document.getElementById('shootWizardBody'));
+    (ed.shootWizardParts || []).forEach((step) => { if (step.leave) step.leave(); });
+    ed.shootWizardParts = [];
   }
 
   function renderShootWizardChrome() {
-    const step = ed.SHOOT_WIZARD_STEPS.find(s => s.key === ed.shootWizardStepKey);
-    if (!step) return;
-    const inPlay = shootWizardStepsInPlay();
-    const isLast = !adjacentShootWizardStep(1);
-    document.getElementById('shootWizardStep').textContent = `Step ${inPlay.indexOf(step) + 1} of ${inPlay.length}`;
-    document.getElementById('shootWizardTitle').textContent = typeof step.title === 'function' ? step.title() : step.title;
-    const hintEl = document.getElementById('shootWizardHint');
-    hintEl.textContent = (typeof step.hint === 'function' ? step.hint() : step.hint) || '';
-    // A slide without a hint doesn't keep an empty line's spacing.
-    hintEl.hidden = !hintEl.textContent;
-    // No Back on the first slide, nor on the last: that one is just the
-    // confirm button (see below).
-    document.getElementById('shootWizardBackBtn').hidden = isLast || !adjacentShootWizardStep(-1);
-    // Small "Don't show again" link, on the first slide only, and not when
-    // the guide was asked for from the ⋯ menu.
-    document.getElementById('shootWizardDontShowBtn').hidden = inPlay.indexOf(step) !== 0 || ed.shootWizardAgain;
-    // Forward is always possible, filled in or not. On the last slide the
-    // forward button is the shoot page's own Save — same varying text as the
-    // page's button (picked when the shoot opened) — and the separate "Skip
-    // to shoot page" row, on every other slide, steps aside.
+    const chapter = ed.guideChapter(ed.shootWizardStepKey);
+    if (!chapter) return;
+    const at = ed.GUIDE_CHAPTERS.indexOf(chapter);
+    const next = adjacentShootWizardStep(1);
+    const done = ed.setupChapters(ed.frontShoot(), ed.lastFrontCounts() || {}).filter(ch => ch.done).map(ch => ch.key);
+    ed.drawGuideMarks(at, done);
+    document.getElementById('shootWizardStep').textContent = `Chapter ${at + 1} of ${ed.GUIDE_CHAPTERS.length}`;
+    document.getElementById('shootWizardTitle').textContent = chapter.title;
+    document.getElementById('shootWizardHint').textContent = chapter.question;
+    document.getElementById('shootWizardPlace').textContent = ed.shootWizardAgain ? ed.shootDisplayName(ed.frontShoot()) : 'New shoot';
+    // Next names the chapter it goes to; on the last (or the only) one it's
+    // Done, and Done for now and Skip step aside.
     const nextBtn = document.getElementById('shootWizardNextBtn');
-    nextBtn.textContent = isLast ? document.getElementById('saveShootBtn').textContent : 'Next';
-    nextBtn.classList.toggle('shoot-wizard-save', isLast);
-    document.getElementById('shootWizardExitRow').hidden = isLast;
+    nextBtn.innerHTML = next ? `Next: ${ed.escapeHtml(next.title)} ${CHEVRON}` : 'Done';
+    document.getElementById('shootWizardExitBtn').hidden = !next;
+    document.getElementById('shootWizardSkipBtn').hidden = !next;
+    // "Don't show the guide again", on a new shoot's first chapter only.
+    document.getElementById('shootWizardDontShowBtn').hidden = at !== 0 || ed.shootWizardAgain;
   }
 
   // Run from scheduleShootAutosave on every change while the wizard's up.
@@ -13368,15 +13589,20 @@ window.EyeParts.addNewShootWizard = function addNewShootWizard(ed) {
   }
 
   function showShootWizardStep(key) {
-    const step = ed.SHOOT_WIZARD_STEPS.find(s => s.key === key);
-    if (!step) return;
+    const chapter = ed.guideChapter(key);
+    if (!chapter) return;
     blurShootWizardFocus();
     restoreShootWizardBlocks();
     ed.shootWizardStepKey = key;
     const body = document.getElementById('shootWizardBody');
-    step.blocks().forEach(block => moveBlockIntoShootWizard(block, body));
-    if (step.enter) step.enter();
-    body.scrollTop = 0;
+    const parts = ed.guideChapterParts(chapter);
+    ed.shootWizardParts = parts;
+    parts.forEach((step) => {
+      if (parts.length > 1 && !ed.guidePartIsChapter(step, chapter)) ed.addGuidePartHead(step, body);
+      step.blocks().forEach(block => moveBlockIntoShootWizard(block, body));
+      if (step.enter) step.enter();
+    });
+    document.getElementById('shootWizardScroll').scrollTop = 0;
     renderShootWizardChrome();
     // Measured now, at the card's width, with the wizard already visible — a
     // hidden one would measure zero and leave every box at its rows default.
@@ -13420,11 +13646,14 @@ window.EyeParts.addNewShootWizard = function addNewShootWizard(ed) {
     });
   }
 
+  // opts.from: the chapter to start on (Continue setup on the shoot's page
+  // starts on the first part still missing), else the first one. opts.only:
+  // just that chapter (the next step, or an empty part of the page).
   function startShootWizard(opts) {
-    const first = ed.SHOOT_WIZARD_STEPS.find(step => !step.when || step.when());
-    if (!first) return;
+    const first = (opts && opts.from && ed.guideChapter(opts.from)) || ed.GUIDE_CHAPTERS[0];
     ed.shootWizardActive = true;
     ed.shootWizardAgain = !!(opts && opts.again);
+    ed.shootWizardOnly = !!(opts && opts.only && opts.from);
     ed.shootWizardStepKey = null;
     ed.shootWizardViewportMaxH = 0;
     // Slide 1 explains the status button itself, so the one-time intro that
@@ -13476,20 +13705,20 @@ window.EyeParts.addNewShootWizard = function addNewShootWizard(ed) {
 window.EyeParts = window.EyeParts || {};
 window.EyeParts.addNewShootWizardEnd = function addNewShootWizardEnd(ed) {
   Object.assign(ed, { endShootWizard, isNewShootGuideOn, setNewShootGuideOn });
-  // Every way out: Done, "Skip to shoot page", the post-shoot prompt's Yes,
-  // closeShootModal and openShootModal. Idempotent. `closing` skips the
+  // Every way out: Done, Done for now, Back from the first chapter, the
+  // post-shoot prompt's Yes, closeShootModal and openShootModal. Idempotent. `closing` skips the
   // landing-on-the-page work, since a close/reopen does its own next.
   function endShootWizard(opts) {
     const closing = !!(opts && opts.closing);
     ed.shootWizardPendingId = null;
     clearTimeout(ed.shootWizardStartTimer);
     if (!ed.shootWizardActive) return;
-    closeLeaveShootWizardPrompt();
     ed.closeConceptHelper();
     ed.blurShootWizardFocus();
     ed.restoreShootWizardBlocks();
     ed.shootWizardActive = false;
     ed.shootWizardAgain = false;
+    ed.shootWizardOnly = false;
     ed.shootWizardStepKey = null;
     const wizard = document.getElementById('shootWizard');
     wizard.hidden = true;
@@ -13509,56 +13738,34 @@ window.EyeParts.addNewShootWizardEnd = function addNewShootWizardEnd(ed) {
     modalEl.scrollTop = 0;
     ed.updateShootModalTitleFromScroll();
     ed.breakShootPages();
+    // Done (or Skip): the shoot's front page, with what was filled in.
+    ed.showShootPage('front');
   }
 
   document.getElementById('shootWizardBackBtn').addEventListener('click', () => {
     if (!ed.shootWizardActive) return;
+    // Back from the first chapter (or the only one) leaves, like Done for now.
     const prev = ed.adjacentShootWizardStep(-1);
     if (prev) ed.showShootWizardStep(prev.key);
+    else endShootWizard();
   });
 
   document.getElementById('shootWizardNextBtn').addEventListener('click', () => {
     if (!ed.shootWizardActive) return;
     const next = ed.adjacentShootWizardStep(1);
     if (next) ed.showShootWizardStep(next.key);
-    // The last slide's button is Save: save and close, like the page's.
-    else ed.closeShootModal();
+    // Done, on the last chapter: the shoot's page, with what's filled in.
+    else endShootWizard();
   });
 
-  // Leaving early always asks first — from "Skip to shoot page" or a tap on
-  // the dim around the card. (Finishing on the last slide, or "Don't show
-  // again", don't: those say what they do.)
-  function askLeaveShootWizard() {
+  // Done for now: what's filled in is already on the page, which opens.
+  document.getElementById('shootWizardExitBtn').addEventListener('click', () => endShootWizard());
+  // Skip: on to the next chapter without answering this one.
+  document.getElementById('shootWizardSkipBtn').addEventListener('click', () => {
     if (!ed.shootWizardActive) return;
-    document.getElementById('shootWizardLeaveOverlay').hidden = false;
-  }
-
-  function closeLeaveShootWizardPrompt() {
-    document.getElementById('shootWizardLeaveOverlay').hidden = true;
-  }
-
-  document.getElementById('shootWizardExitBtn').addEventListener('click', askLeaveShootWizard);
-
-  // Only a tap that both starts and ends on the dim: with a mouse, a text
-  // selection dragged out past the card's edge also "clicks" the backdrop.
-  let shootWizardPressOnBackdrop = false;
-  document.getElementById('shootWizard').addEventListener('pointerdown', (e) => {
-    shootWizardPressOnBackdrop = e.target === e.currentTarget;
-  });
-  document.getElementById('shootWizard').addEventListener('click', (e) => {
-    if (e.target === e.currentTarget && shootWizardPressOnBackdrop) askLeaveShootWizard();
-    shootWizardPressOnBackdrop = false;
-  });
-
-  document.getElementById('shootWizardLeaveStayBtn').addEventListener('click', closeLeaveShootWizardPrompt);
-
-  document.getElementById('shootWizardLeaveGoBtn').addEventListener('click', () => {
-    closeLeaveShootWizardPrompt();
-    endShootWizard();
-  });
-
-  document.getElementById('shootWizardLeaveOverlay').addEventListener('click', (e) => {
-    if (e.target === e.currentTarget) closeLeaveShootWizardPrompt();
+    const next = ed.adjacentShootWizardStep(1);
+    if (next) ed.showShootWizardStep(next.key);
+    else endShootWizard();
   });
 
   // On/off for the whole guide, remembered on this device. Turned off from
@@ -14591,6 +14798,8 @@ window.EyeParts.addShootOpen = function addShootOpen(ed) {
     document.getElementById('shootTeamFinalized').checked = s ? !!s.teamFinalized : false;
     ed.currentTeamMembers = s && s.teamMembers ? s.teamMembers.map(tm => ({ ...tm })) : [];
     ed.renderTeamMembers();
+    // "Date not set", "Location to be decided", "Not sure yet" (not-sure.js).
+    ed.loadNotSure(s);
 
     ed.renderShootFrameworkTags(s);
     ed.renderShootNotes(s ? s.id : null);
@@ -14618,8 +14827,10 @@ window.EyeParts.addShootOpen = function addShootOpen(ed) {
     if (!id && ed.isNewShootGuideOn()) ed.queueShootWizard();
     else if (!s) ed.maybeShowStatusSwatchIntro();
 
-    // Back to the page this shoot was last open on, at its top.
-    const remembered = ed.shootPageMemory[ed.currentShootId] || { id: 'basicInfoHeading', sub: 0 };
+    // The front page, or the page it was on when the app was last closed
+    // (ed.shootOpenAt, set by the place it comes back to, offline.js).
+    const remembered = ed.shootOpenAt || { id: 'front', sub: 0 };
+    ed.shootOpenAt = null;
     ed.shootFlows = null;
     ed.shootSub = 0;
     ed.shootBreakChanged = [];
@@ -15431,7 +15642,7 @@ window.EyeParts.addShootSave = function addShootSave(ed) {
 
     const teamRequired = ed.getTeamRequiredChoice();
 
-    return {
+    const data = {
       title: document.getElementById('shootTitle').value.trim(),
       status: document.getElementById('shootStatus').value,
       date: document.getElementById('shootDate').value,
@@ -15485,6 +15696,9 @@ window.EyeParts.addShootSave = function addShootSave(ed) {
       // in autosaveShoot() keep whatever the shoot already had.
       ...(ed.pendingProjectPhoto ? { projectPhoto: ed.pendingProjectPhoto } : {}),
     };
+    // The honest answers that still stand (not-sure.js).
+    data.notSure = ed.notSureNow(data);
+    return data;
   }
 
   // A brand-new, never-touched shoot draft shouldn't get written to state
@@ -15588,6 +15802,73 @@ window.EyeParts.addShootSave = function addShootSave(ed) {
   // Commit as soon as focus leaves a field, so the pending-debounce window is
   // only ever open while you're actually still in a field typing.
   ed.shootForm.addEventListener('focusout', saveShootNow);
+};
+;
+
+// ---- pages/shoot/not-sure.js ----
+// The honest answers on a shoot's page and in the guide: "Date not set" and
+// "Location to be decided" (shown while those are empty) and "Not sure yet"
+// about the team. Each counts as answered (components/shoot-stage.js) and is
+// saved in the shoot's notSure list until the real thing is filled in.
+// (Loaded before app.js, which runs it in its turn.)
+window.EyeParts = window.EyeParts || {};
+window.EyeParts.addShootNotSure = function addShootNotSure(ed) {
+  Object.assign(ed, { loadNotSure, syncNotSure, notSureNow });
+  const picked = new Set();
+  const CHIPS = { date: 'dateNotSetBtn', location: 'locationNotSetBtn', team: 'teamNotSureBtn' };
+  const hasPlace = () => ['name', 'street', 'city'].some(k => ed.hasText(ed.currentShootLocation[k]));
+
+  // As the shoot was saved, when it opens.
+  function loadNotSure(shoot) {
+    picked.clear();
+    ((shoot && shoot.notSure) || []).forEach(key => picked.add(key));
+    syncNotSure();
+  }
+
+  // The list to save: the ones still standing.
+  function notSureNow(data) {
+    return ed.stillNotSure({ ...data, notSure: [...picked] });
+  }
+
+  // Each chip shows whether it's picked; the date's and the place's step
+  // aside once there's a real one.
+  function syncNotSure() {
+    Object.entries(CHIPS).forEach(([key, id]) => {
+      const chip = document.getElementById(id);
+      const on = picked.has(key) && (key !== 'team' || !ed.getTeamRequiredChoice());
+      chip.classList.toggle('active', on);
+      chip.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    document.getElementById('dateNotSetBtn').hidden = ed.hasText(document.getElementById('shootDate').value);
+    document.getElementById('locationNotSetBtn').hidden = hasPlace();
+  }
+
+  function toggle(key) {
+    if (picked.has(key)) picked.delete(key);
+    else picked.add(key);
+    syncNotSure();
+    ed.scheduleShootAutosave();
+  }
+  document.getElementById('dateNotSetBtn').addEventListener('click', () => toggle('date'));
+  document.getElementById('locationNotSetBtn').addEventListener('click', () => toggle('location'));
+
+  // "Not sure yet" takes the place of Just me or With a team, and they of it.
+  document.getElementById('teamNotSureBtn').addEventListener('click', () => {
+    if (picked.has('team') && !ed.getTeamRequiredChoice()) return;
+    picked.add('team');
+    ed.setTeamRequiredChoice('');
+    syncNotSure();
+    ed.scheduleShootAutosave();
+  });
+  ['teamRequiredNoBtn', 'teamRequiredYesBtn'].forEach(id => document.getElementById(id).addEventListener('click', () => {
+    picked.delete('team');
+    syncNotSure();
+  }));
+
+  // A date typed or a place picked puts its chip away.
+  document.getElementById('shootDate').addEventListener('input', syncNotSure);
+  document.getElementById('shootDate').addEventListener('change', syncNotSure);
+  new MutationObserver(syncNotSure).observe(document.getElementById('shootLocationBtn'), { childList: true, characterData: true, subtree: true });
 };
 ;
 
@@ -16516,6 +16797,663 @@ window.EyeParts.addShootOptionsAddToProject = function addShootOptionsAddToProje
   ed.shootOptionsOverlay.addEventListener('click', (e) => {
     if (e.target === ed.shootOptionsOverlay) ed.closeShootOptions();
   });
+};
+;
+
+// ---- pages/shoot/shoot-front.js ----
+// A shoot's page in the round 2 look: the front page (its status, name, when
+// and where, the cards for what this stage needs, then The details), and
+// each part of the form below on a page of its own, one tap deeper. The
+// form itself is unchanged: it's only shown a part at a time.
+// (Loaded before app.js, which runs it in its turn.)
+window.EyeParts = window.EyeParts || {};
+window.EyeParts.addShootFront = function addShootFront(ed) {
+  Object.assign(ed, { frontShoot, frontCounts, showShootFront, showShootDetail, drawShootFront, lastFrontCounts: () => lastCounts });
+  ed.shootOnFront = true;
+  const front = document.getElementById('shootFront');
+  const modal = ed.shootModalOverlay.querySelector('.modal');
+  const PLACES = { overview: 'Overview', shoots: 'Shoots', journal: 'Reflections', archive: 'Archive', stats: 'Stats' };
+  const CLOCK = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>';
+  const PIN = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/></svg>';
+  const CHEVRON = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><polyline points="9 5 16 12 9 19"/></svg>';
+
+  // The shoot as it stands on the page: what's saved, with what's typed.
+  function frontShoot() {
+    const saved = ed.state.shoots.find(s => s.id === ed.currentShootId) || {};
+    return { ...saved, ...ed.gatherShootFormData(), id: ed.currentShootId, archived: !!saved.archived };
+  }
+
+  // What lives outside the shoot, for the cards and the next step: how many
+  // mood board photos and final images, its boards from Ref, whether it's video.
+  function frontCounts(shootId) {
+    const video = document.getElementById('shootCategory').value === 'video';
+    const urls = [];
+    return Promise.all([
+      ed.idbGetImages(shootId).catch(() => []),
+      ed.idbGetImages(ed.finalImagesKey(shootId)).catch(() => []),
+      ed.refBoardsFor(shootId, urls).catch(() => []),
+    ]).then(([photos, finals, boards]) => ({
+      moodboard: photos.length, photos, finalImages: finals.length, finals, boards: boards.length, boardList: boards, urls, video,
+    }));
+  }
+
+  // Only the part of the form that's open shows: the rest is put away
+  // (styles/shoot-front.css). A block the guide has borrowed isn't the
+  // form's own child while it's out, so it shows wherever the guide is.
+  function showPart(pageId) {
+    ed.shootPageEls.forEach(({ el, page }) => el.classList.toggle('shoot-off', page !== pageId));
+    ed.shootForm.classList.toggle('shoot-form-off', !pageId);
+  }
+
+  function placeName() {
+    return PLACES[ed.currentScreen()] || 'Shoots';
+  }
+
+  function showShootFront() {
+    ed.shootOnFront = true;
+    ed.shootModalOverlay.classList.add('on-front');
+    front.hidden = false;
+    showPart(null);
+    document.getElementById('shootBandPlace').textContent = placeName();
+    if (ed.currentShootId) ed.shootPageMemory[ed.currentShootId] = { id: 'front', sub: 0 };
+    modal.scrollTop = 0;
+    drawShootFront();
+    ed.queueLastPlace();
+  }
+
+  function showShootDetail(pageId) {
+    ed.shootOnFront = false;
+    ed.shootModalOverlay.classList.remove('on-front');
+    front.hidden = true;
+    showPart(pageId);
+    document.getElementById('shootBandPlace').textContent = ed.shootDisplayName(frontShoot());
+    // Boxes that were put away measured nothing.
+    ed.autoSizeAllListTextareas();
+    ed.syncAllShootFormFields();
+    modal.scrollTop = 0;
+    ed.drawNextStep(frontShoot(), lastCounts);
+    ed.queueLastPlace();
+  }
+
+  const has = v => ed.hasText(v);
+
+  // "4:30 to 7:00 PM": one AM or PM when both ends share it.
+  function timeWords(start, end) {
+    if (!start) return 'time not set';
+    const a = ed.prettyTime(start);
+    if (!end) return a;
+    const b = ed.prettyTime(end);
+    const sameHalf = a.slice(-2) === b.slice(-2);
+    return `${sameHalf ? a.slice(0, -3) : a} to ${b}`;
+  }
+  const placeWords = loc => (loc ? [loc.name, loc.city].filter(has).map(v => v.trim()).join(', ') || ed.formatLocationDisplayNoCountry(loc) : '');
+
+  function drawHead(s) {
+    document.getElementById('shootStatusTagText').textContent = ed.STATUS_LABELS[s.status] || 'Prospect';
+    document.getElementById('shootFrontTitle').textContent = ed.shootDisplayName(s);
+    const today = ed.todayStr();
+    const when = document.getElementById('shootFrontWhen');
+    const where = placeWords(s.location);
+    if (ed.isPostCaptureStatus(s.status)) {
+      when.className = 'shoot-front-when shoot-front-shot';
+      when.textContent = ed.metaLine([s.date ? `Shot ${ed.rowDate(s.date, today, true)}` : '', where]);
+      return;
+    }
+    when.className = 'shoot-front-when';
+    const day = s.date ? `${ed.rowDate(s.date, today, true)}, ${timeWords(s.startTime, s.endTime)}` : 'Date not set';
+    when.innerHTML = `<span>${CLOCK}<span>${ed.escapeHtml(day)}</span></span>
+      <span class="${where ? '' : 'shoot-front-dim'}">${PIN}<span>${ed.escapeHtml(where || 'Location to be decided')}</span></span>`;
+  }
+
+  // ---------- The details ----------
+  const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+  const shot = s => ed.isPostCaptureStatus(s.status);
+  // An honest answer's words, while it stands.
+  const unsure = (s, key, words) => (ed.stillNotSure(s).includes(key) ? words : '');
+  // The first board from Ref: live, frozen on the day it was shot, or imported.
+  function boardWords(c) {
+    const l = c.boardList && c.boardList[0] && c.boardList[0].link;
+    if (!l) return '';
+    if (l.importedAt) return 'Imported from Ref';
+    if (!l.frozenAt) return 'Live from Ref';
+    return `Board as of ${ed.rowDate(ed.formatDate(new Date(l.frozenAt)), ed.todayStr(), false)}, frozen from Ref`;
+  }
+  // "4 shots, 2 must-haves"; once it's shot, how many got done: "3 of 4, both must-haves".
+  function shotListWords(s) {
+    const shots = (s.shotList || []).filter(i => has(i.text));
+    if (!shots.length) return '';
+    const stars = shots.filter(i => i.starred);
+    if (!shot(s)) return ed.metaLine([plural(shots.length, 'shot'), stars.length ? plural(stars.length, 'must-have') : '']);
+    const done = shots.filter(i => i.checked).length;
+    const starsDone = stars.filter(i => i.checked).length;
+    let musts = '';
+    if (stars.length && starsDone === stars.length) musts = stars.length === 1 ? 'the must-have' : stars.length === 2 ? 'both must-haves' : `all ${stars.length} must-haves`;
+    else if (stars.length) musts = `${starsDone} of ${stars.length} must-haves`;
+    return ed.metaLine([`${done} of ${shots.length}`, musts]);
+  }
+  const ROWS = {
+    talent: { label: 'Talent', page: 'basicInfoHeading', words: s => (s.talents || []).map(t => t.name).filter(has).join(', ') },
+    logistics: { label: 'Logistics', page: 'logisticsHeading', words: s => ed.metaLine([s.date ? ed.rowDate(s.date, ed.todayStr(), true) : unsure(s, 'date', 'Date not set'), placeWords(s.location) || unsure(s, 'location', 'Location to be decided')]) },
+    team: { label: 'Team', page: 'teamHeading', words: s => (s.teamRequired === 'no' ? 'Just me' : (s.teamMembers || []).map(m => m.name).filter(has).join(', ') || unsure(s, 'team', 'Not sure yet')) },
+    direction: { label: 'Direction', page: 'directionHeading', words: s => ['premise', 'shootGoals', 'elevatorPitch', 'character', 'worldNotes', 'deliverables'].map(k => s[k]).find(has) || '' },
+    // Once it's shot, the mood board is what it was on the day.
+    visuals: { label: s => (shot(s) ? ed.moodboardTerm(s.category || '') : 'Visuals'), page: 'visualsHeading', words: (s, c) => ed.metaLine([boardWords(c), c.boards > 1 ? plural(c.boards, 'board') : '', c.moodboard ? plural(c.moodboard, 'photo') : '', (s.references || []).length ? plural(s.references.length, 'link') : '', (s.lightingSetups || []).length ? plural(s.lightingSetups.length, 'lighting setup') : '']) },
+    shotList: { label: 'Shot list', page: 'shotListHeading', words: shotListWords },
+    deadline: { label: 'Deadline', page: 'logisticsHeading', empty: 'Not set', words: s => (s.deadline ? `Due ${ed.rowDate(s.deadline, ed.todayStr(), false)}` : '') },
+    notes: { label: 'Notes in Overthoughts', page: 'basicInfoHeading', words: () => { const first = document.querySelector('#shootNotes .past-lesson-head'); return first ? first.textContent.trim() : ''; } },
+    reflection: { label: 'Reflection', page: 'postShootHeading', empty: 'Not written yet', words: s => ['lessonsLearned', 'whatWentRight', 'couldBeBetter'].map(k => s[k]).find(has) || '' },
+    finalImages: { label: 'Final images', page: 'postShootHeading', empty: 'None yet', words: (s, c) => (c.finalImages ? plural(c.finalImages, 'final image') : '') },
+  };
+
+  // Which rows, by stage. A part already on the front page isn't repeated.
+  function rowKeys(s, c, onFront) {
+    const notes = !document.getElementById('shootNotes').hidden ? ['notes'] : [];
+    let keys;
+    if (!ed.isPostCaptureStatus(s.status)) keys = ['logistics', 'team', 'direction', 'visuals', 'shotList', 'deadline', ...notes];
+    else keys = ['shotList', 'visuals', 'talent', 'team', 'logistics', 'direction', ...notes, ...(c.video ? [] : ['finalImages']), 'reflection'];
+    return keys.filter(k => !onFront.includes(k));
+  }
+
+  function drawDetailRows(s, c, onFront) {
+    const box = document.getElementById('shootDetailRows');
+    // Before it's shot, an empty part opens its chapter of the guide.
+    const planning = !ed.isPostCaptureStatus(s.status) && !s.archived;
+    const rows = rowKeys(s, c, onFront).map((key) => {
+      const row = ROWS[key];
+      const words = row.words(s, c);
+      const chapter = key === 'talent' ? 'basics' : key;
+      const toGuide = planning && !words && ed.SETUP_CHAPTERS.some(ch => ch.key === chapter);
+      return `<button type="button" class="detail-row" data-page="${row.page}"${toGuide ? ` data-chapter="${chapter}"` : ''}>
+        <span class="detail-dot${words ? ' filled' : ''}" aria-hidden="true"></span>
+        <span class="detail-words"><span class="detail-label">${ed.escapeHtml(typeof row.label === 'function' ? row.label(s) : row.label)}</span><span class="detail-sum">${ed.escapeHtml(words || row.empty || 'Not added yet')}</span></span>
+        ${CHEVRON}</button>`;
+    });
+    // Before it's shot, the reflection waits: shown, but not a way in yet.
+    if (!ed.isPostCaptureStatus(s.status)) {
+      rows.push(`<div class="detail-row detail-row-closed"><span class="detail-dot" aria-hidden="true"></span>
+        <span class="detail-words"><span class="detail-label">Reflection</span><span class="detail-sum">Opens once the shoot is captured</span></span></div>`);
+    }
+    box.innerHTML = rows.join('');
+  }
+  document.getElementById('shootDetailRows').addEventListener('click', (e) => {
+    const row = e.target.closest('button.detail-row');
+    if (!row) return;
+    if (row.dataset.chapter) ed.openShootPart(row.dataset.chapter, row.dataset.page);
+    else ed.showShootPage(row.dataset.page);
+  });
+
+  // Everything on the front page, from the shoot as it stands. The photos
+  // and boards come in after; a newer draw wins.
+  let drawing = 0;
+  let boardUrls = [];
+  let lastCounts = null;
+  function drawShootFront() {
+    if (ed.shootModalOverlay.hidden || !ed.shootOnFront) return Promise.resolve();
+    const s = frontShoot();
+    drawHead(s);
+    const draw = ++drawing;
+    return frontCounts(s.id).then((c) => {
+      if (draw !== drawing) { c.urls.forEach(u => URL.revokeObjectURL(u)); return; }
+      boardUrls.forEach(u => URL.revokeObjectURL(u));
+      boardUrls = c.urls;
+      lastCounts = c;
+      const onFront = ed.drawFrontCards(s, c);
+      drawDetailRows(s, c, onFront);
+      ed.drawNextStep(s, c);
+    });
+  }
+
+  document.getElementById('shootBandBack').addEventListener('click', () => {
+    if (ed.shootOnFront) ed.shootModalOverlay.querySelector('[data-close="shoot"]').click();
+    else { ed.saveShootNow(); showShootFront(); }
+  });
+};
+;
+
+// ---- pages/shoot/front-cards.js ----
+// The cards on a shoot's front page before it's shot: Getting ready (the
+// seven parts the guide asks about, components/shoot-stage.js), Talent, the
+// mood board and the first shots. After the shoot, stage-cards.js has its
+// own. Each card opens the part of the page it's about.
+// (Loaded before app.js, which runs it in its turn.)
+window.EyeParts = window.EyeParts || {};
+window.EyeParts.addShootFrontCards = function addShootFrontCards(ed) {
+  Object.assign(ed, { drawFrontCards, frontBlock, frontTitle });
+  const CHEVRON = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><polyline points="9 5 16 12 9 19"/></svg>';
+  const STAR = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.8l-5.2 2.7 1-5.8-4.2-4.1 5.8-.8Z"/></svg>';
+  const EMPTY_BOARD = '<span class="front-board-empty" aria-hidden="true"><span></span><span></span><span></span><span></span></span>';
+  const has = v => ed.hasText(v);
+  const esc = v => ed.escapeHtml(v);
+  const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
+  // A section title on the front page, with words at its right.
+  function frontTitle(text, right) {
+    return `<div class="front-title-row"><h2 class="front-title">${esc(text)}</h2>${right ? `<span class="front-title-meta">${esc(right)}</span>` : ''}</div>`;
+  }
+  // A block that opens a part of the page.
+  function frontBlock(cls, page, inner) {
+    return `<button type="button" class="${cls}" data-page="${page}">${inner}</button>`;
+  }
+
+  // The chapter an honest answer belongs to (the date is asked in Basics).
+  const NOT_SURE_CHAPTER = { date: 'basics', location: 'logistics', team: 'team' };
+
+  // Stays while a part is missing or an answer is still "not sure yet".
+  function gettingReady(s, c) {
+    const chapters = ed.setupChapters(s, c);
+    const unsure = ed.stillNotSure(s).map(key => NOT_SURE_CHAPTER[key]);
+    const left = chapters.filter(ch => !ch.done);
+    const from = left[0] || chapters.find(ch => unsure.includes(ch.key));
+    if (!from) return '';
+    const bars = chapters.map(ch => `<span class="${ch.done ? 'done' : ''}"></span>`).join('');
+    return `<div class="front-card getting-ready">
+      <div class="front-card-head"><span class="front-card-title">Getting ready</span><span class="front-card-meta">${chapters.length - left.length} of ${chapters.length}</span></div>
+      <div class="ready-bars" aria-hidden="true">${bars}</div>
+      <p class="front-card-text">${esc([ed.setupWords(chapters), ed.notSureWords(s)].filter(Boolean).join(' '))}</p>
+      <button type="button" class="outline-btn" data-guide="${from.key}">Continue setup ${CHEVRON}</button>
+      <p class="front-card-note">The whole guide, from ${esc(from.label.toLowerCase())} on</p>
+    </div>`;
+  }
+
+  // Who's in it: their photo, name, and whether they've been in a shoot before.
+  function talentBlock(s) {
+    const talents = (s.talents || []).filter(t => has(t.name));
+    const others = ed.state.shoots.filter(x => x.id !== s.id);
+    const returning = t => others.some(x => (x.talents || []).some(o => has(o.name) && o.name.trim().toLowerCase() === t.name.trim().toLowerCase()));
+    const rows = talents.map((t) => {
+      const handle = (t.socialHandles || []).map(h => h.handle || h.value || '').find(has);
+      const meta = ed.metaLine([returning(t) ? 'Returning talent' : '', handle ? `@${handle.replace(/^@/, '')}` : '']);
+      return `<span class="front-talent">
+        <span class="front-talent-photo">${t.photo ? `<img src="${t.photo}" alt="" />` : ''}</span>
+        <span class="front-talent-words"><span class="front-talent-name">${esc(t.name)}</span>${meta ? `<span class="front-talent-meta">${esc(meta)}</span>` : ''}</span>
+      </span>`;
+    }).join('');
+    return frontTitle('Talent') + frontBlock('front-talents', 'basicInfoHeading', rows
+      || '<span class="front-empty"><span class="front-empty-big">No talent yet.</span><span>Add who it\'s with.</span></span>');
+  }
+
+  // The first board from Ref, else the shoot's own photos, else how to add one.
+  function moodboardBlock(s, c) {
+    const term = ed.moodboardTerm(s.category || '');
+    const board = c.boardList[0];
+    let inner;
+    if (board) {
+      const l = board.link;
+      const state = l.importedAt ? 'Imported' : l.frozenAt ? 'Frozen from Ref' : 'Live from Ref';
+      const pics = [board.cover, ...board.pages].filter(Boolean).slice(0, 3);
+      inner = `${collage(pics)}<span class="front-board-words"><span class="front-board-state">${esc(state)}</span>
+        <span class="front-board-name">${esc(l.name || term)}</span><span class="front-board-meta">${esc(plural(l.photoCount || 0, 'image'))}</span></span>${CHEVRON}`;
+    } else if (c.moodboard) {
+      inner = `${collage(c.photos.slice(0, 3).map(p => p.src))}<span class="front-board-words"><span class="front-board-name">${esc(term)}</span>
+        <span class="front-board-meta">${esc(plural(c.moodboard, 'photo'))}</span></span>${CHEVRON}`;
+    } else {
+      inner = `${EMPTY_BOARD}<span class="front-board-words"><span class="front-empty-big">No ${esc(term.toLowerCase())} yet.</span><span>Send one from Ref, or import photos.</span></span>`;
+    }
+    return frontTitle(term) + frontBlock('front-card front-board', 'visualsHeading', inner);
+  }
+  function collage(srcs) {
+    return `<span class="front-collage n${srcs.length}" aria-hidden="true">${srcs.map(src => `<img src="${src}" alt="" />`).join('')}</span>`;
+  }
+
+  // The first three shots, and the way to the rest.
+  function shotListBlock(s) {
+    const shots = (s.shotList || []).filter(i => has(i.text));
+    if (!shots.length) return '';
+    const stars = shots.filter(i => i.starred).length;
+    const rows = shots.slice(0, 3).map(i => `<span class="front-shot"><span class="front-shot-ring" aria-hidden="true"></span>
+      <span class="front-shot-text">${esc(i.text)}</span><span class="front-shot-star${i.starred ? ' starred' : ''}" aria-label="${i.starred ? 'Must-have' : ''}">${STAR}</span></span>`).join('');
+    return frontTitle('Shot list', ed.metaLine([plural(shots.length, 'shot'), stars ? plural(stars, 'must-have') : '']))
+      + frontBlock('front-shots', 'shotListHeading', `${rows}<span class="front-see-all">See all ${shots.length} ${CHEVRON}</span>`);
+  }
+
+  // Draws this stage's cards; returns the parts they cover, which The
+  // details then leaves out.
+  function drawFrontCards(s, c) {
+    const box = document.getElementById('shootFrontCards');
+    let html = '';
+    let onFront = [];
+    if (ed.isPostCaptureStatus(s.status) || s.archived) {
+      const drawn = ed.drawStageCards(s, c);
+      html = drawn.html;
+      onFront = drawn.onFront;
+    } else if (s.status === 'waiting_to_shoot') {
+      html = moodboardBlock(s, c) + shotListBlock(s) + talentBlock(s);
+      onFront = ['shotList'];
+    } else {
+      html = gettingReady(s, c) + talentBlock(s) + moodboardBlock(s, c) + shotListBlock(s);
+      onFront = ['shotList'];
+    }
+    box.innerHTML = html;
+    // An empty shot list isn't on the front page, so it stays a row.
+    if (!box.querySelector('[data-page="shotListHeading"]')) onFront = onFront.filter(k => k !== 'shotList');
+    return onFront;
+  }
+
+  document.getElementById('shootFrontCards').addEventListener('click', (e) => {
+    const guide = e.target.closest('[data-guide]');
+    if (guide) { ed.startShootWizard({ again: true, from: guide.dataset.guide }); return; }
+    const part = e.target.closest('[data-page]');
+    if (part) ed.showShootPage(part.dataset.page);
+  });
+};
+;
+
+// ---- pages/shoot/stage-cards.js ----
+// The cards on a shoot's front page once it's shot: the reflection while
+// it's fresh (with Walk me through it and Later), the proofs and the
+// deadline, what happened on set, and the final images. Each opens the
+// part of the page it's about. Before the shoot, front-cards.js has its own;
+// once it's delivered, report-cards.js.
+// (Loaded before app.js, which runs it in its turn.)
+window.EyeParts = window.EyeParts || {};
+window.EyeParts.addShootStageCards = function addShootStageCards(ed) {
+  Object.assign(ed, { drawStageCards, onSetHtml: onSet });
+  const CHEVRON = '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><polyline points="9 5 16 12 9 19"/></svg>';
+  // The Reflections mark (pages/tabs.html), as the card's picture.
+  const MARK = '<svg class="front-reflect-mark" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22"/><path d="M24 2a22 22 0 0 1 22 22H24Z"/></svg>';
+  const IN_THE_EDIT = ['waiting_for_selects', 'editing', 'rough_cut', 'client_review', 'revisions'];
+  const esc = v => ed.escapeHtml(v);
+  const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+  // Later puts the reflection card away for as long as the app's open. An
+  // archived shoot isn't fresh any more: its reflection is a row below.
+  const later = new Set();
+
+  function reflectionCard(s) {
+    if (s.archived || ed.hasReflection(s) || later.has(s.id)) return '';
+    return `<div class="front-card front-reflect">${MARK}<div class="front-reflect-words">
+      <span class="front-card-title">Reflection</span>
+      <p class="front-card-text front-card-big">While it's fresh: what went right, what could've gone better, and one lesson for next time.</p>
+      <div class="front-card-btns"><button type="button" class="text-act" data-act="reflect">Walk me through it</button><button type="button" class="text-act text-act-quiet" data-act="later">Later</button></div>
+    </div></div>`;
+  }
+
+  // "Due Fri 20 Nov", "Overdue by 3 days" (crimson), or "Add a deadline".
+  function deadlineLine(s) {
+    const today = ed.todayStr();
+    if (!s.deadline) return { words: 'Add a deadline', late: false };
+    if (s.deadline < today) return { words: ed.overdueWords(s.deadline, today), late: true };
+    return { words: ed.dueWords(s.deadline, today), late: false };
+  }
+  function deadlineRow(s) {
+    const d = deadlineLine(s);
+    return `<button type="button" class="front-deadline" data-page="logisticsHeading"><span class="front-deadline-label">Deadline</span>
+      <span class="front-deadline-words${d.late ? ' late' : ''}">${esc(d.words)} ${CHEVRON}</span></button>`;
+  }
+
+  // "Shot today", "Shot yesterday", "Shot 3 days ago".
+  function shotAgo(s) {
+    if (!s.date) return '';
+    const n = ed.daysBetween(s.date, ed.todayStr());
+    if (n <= 0) return 'Shot today';
+    if (n === 1) return 'Shot yesterday';
+    return `Shot ${n} days ago`;
+  }
+  function proofsCard(s, c) {
+    if (c.video) return `<div class="front-card">${deadlineRow(s)}</div>`;
+    const first = (s.talents || []).map(t => (t.name || '').trim().split(/\s+/)[0]).find(Boolean);
+    return `<div class="front-card front-proofs">
+      <div class="front-card-head"><span class="front-card-title">Proofs</span><span class="front-card-meta">${esc(shotAgo(s))}</span></div>
+      <p class="front-card-text">Send ${esc(first || 'your talent')} the proofs. Marking them sent moves the shoot to Waiting for selects.</p>
+      <button type="button" class="outline-btn" data-act="proofs">Mark proofs sent</button>
+      ${deadlineRow(s)}
+    </div>`;
+  }
+
+  // Shots done, wild cards tried, and how far past the wrap time it was
+  // marked shot (when that was the shoot's own day).
+  function wrapWords(s) {
+    if (!s.capturedAt || !s.date || !s.endTime) return '';
+    const done = new Date(s.capturedAt);
+    if (Number.isNaN(done.getTime()) || ed.formatDate(done) !== s.date) return '';
+    const [h, m] = s.endTime.split(':').map(Number);
+    const wrap = new Date(done);
+    wrap.setHours(h, m, 0, 0);
+    const over = Math.round((done - wrap) / 60000);
+    if (over <= 0) return 'On time';
+    return over < 60 ? `${over}m` : `${Math.floor(over / 60)}h${over % 60 ? ` ${over % 60}m` : ''}`;
+  }
+  function onSet(s) {
+    const shots = (s.shotList || []).filter(i => ed.hasText(i.text));
+    const ticked = shots.filter(i => i.checked).length;
+    const cards = Array.isArray(s.triedWildCards) ? s.triedWildCards.length : 0;
+    const wrap = wrapWords(s);
+    if (!ticked && !cards && !wrap) return '';
+    const stat = (big, label) => `<span class="on-set-stat"><span class="on-set-big">${esc(big)}</span><span class="on-set-label">${esc(label)}</span></span>`;
+    return `${ed.frontTitle('On set')}<div class="on-set">
+      ${shots.length ? stat(`${ticked}/${shots.length}`, 'Shots') : ''}
+      ${stat(String(cards), plural(cards, 'wild card').replace(/^\d+ /, '') + ' tried')}
+      ${wrap ? stat(wrap, wrap === 'On time' ? 'Wrap' : 'Over wrap') : ''}
+    </div>`;
+  }
+
+  // In the edit: the deadline (its row says so), then the final images.
+  function deadlineCard(s) {
+    return `<div class="front-card">${deadlineRow(s)}</div>`;
+  }
+  function finalImagesCard(s, c) {
+    if (c.video) return '';
+    const thumbs = c.finals.slice(0, 4).map(img => `<img src="${img.src}" alt="" />`).join('');
+    const inner = c.finalImages
+      ? `<span class="front-finals">${thumbs}</span><span class="front-board-words"><span class="front-board-name">${esc(plural(c.finalImages, 'final image'))}</span></span>${CHEVRON}`
+      : '<span class="front-empty"><span class="front-empty-big">No final images yet.</span><span>Add them once they\'re edited.</span></span>';
+    return ed.frontTitle('Final images') + ed.frontBlock('front-card front-board', 'postShootHeading', inner);
+  }
+
+  // This stage's cards, and the parts they cover (left out of The details).
+  function drawStageCards(s, c) {
+    const reflect = reflectionCard(s);
+    const covered = reflect ? ['reflection'] : [];
+    if (s.status === 'captured') return { html: reflect + proofsCard(s, c) + onSet(s), onFront: covered };
+    if (IN_THE_EDIT.includes(s.status)) return { html: reflect + deadlineCard(s) + finalImagesCard(s, c), onFront: [...covered, 'finalImages'] };
+    // Delivered or archived: its report (report-cards.js).
+    return ed.drawReportCards(s, c, reflect);
+  }
+
+  document.getElementById('shootFrontCards').addEventListener('click', (e) => {
+    const act = e.target.closest('[data-act]');
+    if (!act) return;
+    if (act.dataset.act === 'later') { later.add(ed.currentShootId); ed.drawShootFront(); return; }
+    if (act.dataset.act === 'reflect') { ed.runNextStep({ key: 'reflect' }); return; }
+    if (act.dataset.act === 'proofs') ed.runNextStep({ key: 'status', to: 'waiting_for_selects' });
+  });
+};
+;
+
+// ---- pages/shoot/report-cards.js ----
+// A delivered or archived shoot's front page reads as its report (it was
+// Archive mode): the reflection in full, the final images (a video's
+// deliverables instead), what happened on set, the idea, and the shooting
+// notes. Each part opens on its own page to change it, like the rest.
+// (Loaded before app.js, which runs it in its turn.)
+window.EyeParts = window.EyeParts || {};
+window.EyeParts.addShootReportCards = function addShootReportCards(ed) {
+  Object.assign(ed, { drawReportCards });
+  const CHEVRON = '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><polyline points="9 5 16 12 9 19"/></svg>';
+  const esc = v => ed.escapeHtml(v);
+  const has = v => ed.hasText(v);
+  const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+  let finals = [];
+
+  // Label-over-words pairs in one card, opening the part they come from.
+  function fieldsCard(page, fields) {
+    const rows = fields.map(([label, value]) => `<span class="report-field"><span class="report-label">${esc(label)}</span>
+      <span class="report-value">${esc(String(value).trim())}</span></span>`).join('');
+    return ed.frontBlock('front-card report-card', page, rows);
+  }
+
+  // Reflection answers only show once it's shot, as on the page.
+  function reflection(s) {
+    const fields = [['whatWentRight', 'What went right'], ['couldBeBetter', "What could've gone better"], ['lessonsLearned', 'Lessons for next time']]
+      .filter(([key]) => has(s[key])).map(([key, label]) => [label, s[key]]);
+    return fields.length ? ed.frontTitle('Reflection') + fieldsCard('postShootHeading', fields) : '';
+  }
+
+  // The final images, three to a row; a tap opens one large.
+  function finalImages(s, c) {
+    if (c.video) {
+      const fields = ed.videoDeliverableFields(s);
+      return fields.length ? ed.frontTitle('Deliverables') + fieldsCard('postShootHeading', fields) : '';
+    }
+    finals = c.finals;
+    const title = ed.frontTitle('Final images', c.finalImages ? plural(c.finalImages, 'image') : '');
+    if (!c.finalImages) {
+      return title + ed.frontBlock('front-card front-board', 'postShootHeading',
+        '<span class="front-empty"><span class="front-empty-big">No final images yet.</span><span>Add them once they\'re edited.</span></span>');
+    }
+    const thumbs = c.finals.slice(0, 6).map((img, i) => `<button type="button" class="report-thumb" data-final="${i}" aria-label="Final image ${i + 1}"><img src="${img.src}" alt="" /></button>`).join('');
+    return `${title}<div class="front-card report-finals"><div class="report-grid">${thumbs}</div>
+      <button type="button" class="front-see-all" data-page="postShootHeading">See all ${c.finalImages} ${CHEVRON}</button></div>`;
+  }
+
+  // What it was about: the Direction boxes this kind of shoot has.
+  function idea(s) {
+    const fields = [['premise', 'Concept'], ['elevatorPitch', 'Elevator pitch'], ['character', 'Character/Personality'], ['worldNotes', 'World-building notes']]
+      .filter(([key]) => ed.directionFieldApplies(s, key) && has(s[key])).map(([key, label]) => [label, s[key]]);
+    return fields.length ? ed.frontTitle('The idea') + fieldsCard('directionHeading', fields) : '';
+  }
+
+  function shootingNotes(s) {
+    if (!has(s.shootingNotes)) return '';
+    return ed.frontTitle('Shooting notes') + ed.frontBlock('front-card report-card', 'shotListHeading', `<span class="report-value">${esc(s.shootingNotes.trim())}</span>`);
+  }
+
+  // The reflection card (asking for it) comes first while it's missing.
+  function drawReportCards(s, c, prompt) {
+    const told = reflection(s);
+    const html = (told || prompt) + finalImages(s, c) + ed.onSetHtml(s) + idea(s) + shootingNotes(s);
+    return { html, onFront: [told || prompt ? 'reflection' : '', c.video ? '' : 'finalImages', idea(s) ? 'direction' : ''].filter(Boolean) };
+  }
+
+  document.getElementById('shootFrontCards').addEventListener('click', (e) => {
+    const thumb = e.target.closest('[data-final]');
+    if (thumb) ed.openImageViewer(finals, Number(thumb.dataset.final), ed.finalImagesKey(ed.currentShootId), null, false);
+  });
+};
+;
+
+// ---- pages/shoot/next-step.js ----
+// The button at the foot of a shoot's page: always the next thing the shoot
+// needs at its stage (components/shoot-stage.js), with a line above it when
+// that helps. And Complete on its own: once a shoot is Delivered, has its
+// final images (a video has none) and its reflection, it goes to the Archive.
+// (Loaded before app.js, which runs it in its turn.)
+window.EyeParts = window.EyeParts || {};
+window.EyeParts.addShootNextStep = function addShootNextStep(ed) {
+  Object.assign(ed, { drawNextStep, runNextStep, setShootStatusOnPage, openShootPart });
+  const bar = document.getElementById('shootNext');
+  const btn = document.getElementById('shootNextBtn');
+  const hint = document.getElementById('shootNextHint');
+  let step = null;
+
+  function drawNextStep(s, counts) {
+    step = ed.nextStep(s, counts || {});
+    bar.hidden = !step;
+    if (!step) return;
+    btn.textContent = step.label;
+    hint.textContent = step.hint || '';
+    hint.hidden = !step.hint;
+  }
+
+  // As if the status were picked on the page: its own change listener asks
+  // what comes next (deadline-prompt.js), and the form saves.
+  function setShootStatusOnPage(to) {
+    const select = document.getElementById('shootStatus');
+    if (![...select.options].some(o => o.value === to)) return;
+    select.value = to;
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    ed.saveShootNow();
+    ed.drawShootFront();
+  }
+
+  // A part still to add opens its chapter of the guide, unless the guide's
+  // turned off (New shoot guide: On the page); then its page.
+  function openShootPart(chapter, page) {
+    if (ed.isNewShootGuideOn()) ed.startShootWizard({ again: true, from: chapter, only: true });
+    else ed.showShootPage(page);
+  }
+
+  function runNextStep(next) {
+    const go = page => ed.showShootPage(page);
+    switch (next.key) {
+      case 'chapter': ed.openShootPart(next.chapter, ed.SETUP_CHAPTERS.find(c => c.key === next.chapter).page); break;
+      case 'status': setShootStatusOnPage(next.to); break;
+      case 'shootMode': document.getElementById('enterShootModeBtn').click(); break;
+      case 'reflect': go('postShootHeading'); document.getElementById('reflectHelperBtn').click(); break;
+      case 'finalImages': go('postShootHeading'); document.getElementById('addFinalPhotos').click(); break;
+      case 'complete': document.getElementById('completeShootBtn').click(); break;
+      case 'unarchive': document.getElementById('unarchiveShootBtn').click(); break;
+      case 'date': go('logisticsHeading'); break;
+      default: break;
+    }
+  }
+  btn.addEventListener('click', () => { if (step) runNextStep(step); });
+
+  // Complete on its own, when a change made now leaves the shoot ready (a
+  // shoot that was ready when it opened keeps its Complete button instead
+  // of vanishing on the way in). It says so, the same as Complete did.
+  let readyAtOpen = { id: null, ready: false };
+  let checking = false;
+  function completeIfReady() {
+    if (checking || ed.shootModalOverlay.hidden || !ed.currentShootId || ed.shootWizardActive || ed.shootOpening) return;
+    const id = ed.currentShootId;
+    checking = true;
+    ed.frontCounts(id).then((c) => {
+      c.urls.forEach(u => URL.revokeObjectURL(u));
+      if (ed.shootModalOverlay.hidden || ed.currentShootId !== id) return;
+      const ready = ed.readyToComplete(ed.frontShoot(), c);
+      if (readyAtOpen.id !== id) { readyAtOpen = { id, ready }; return; }
+      if (ready && !readyAtOpen.ready) document.getElementById('completeShootPromptConfirmBtn').click();
+      readyAtOpen.ready = ready;
+    }).finally(() => { checking = false; });
+  }
+
+  // Every save passes through saveState, and photos change their grids: the
+  // front page follows, and the shoot may be complete now.
+  let redraw = 0;
+  function follow() {
+    if (ed.shootModalOverlay.hidden) return;
+    clearTimeout(redraw);
+    redraw = setTimeout(() => { ed.drawShootFront(); completeIfReady(); }, 120);
+  }
+  const saveState = ed.saveState;
+  ed.saveState = function saveStateAndFollow(...args) {
+    const out = saveState.apply(this, args);
+    follow();
+    return out;
+  };
+  ['finalImagesGrid', 'moodboardGrid', 'refBoards'].forEach(id => new MutationObserver(follow).observe(document.getElementById(id), { childList: true }));
+  // A shoot that's just opened sets where it starts from.
+  new MutationObserver(() => { if (!ed.shootModalOverlay.hidden) { readyAtOpen = { id: null, ready: false }; follow(); } })
+    .observe(ed.shootModalOverlay, { attributes: true, attributeFilter: ['hidden'] });
+};
+;
+
+// ---- pages/shoot/status-sheet.js ----
+// Change status, from the status tag on a shoot's page: the statuses its
+// status field offers (video has its own edit steps), the one it's at
+// marked. Picking one is the same as picking it in that field, so the form
+// saves and asks what comes next (deadline-prompt.js) as it always has.
+// (Loaded before app.js, which runs it in its turn.)
+window.EyeParts = window.EyeParts || {};
+window.EyeParts.addShootStatusSheet = function addShootStatusSheet(ed) {
+  const overlay = document.getElementById('shootStatusSheetOverlay');
+  const list = document.getElementById('shootStatusSheetList');
+  const select = document.getElementById('shootStatus');
+  const close = () => { overlay.hidden = true; };
+
+  document.getElementById('shootStatusTag').addEventListener('click', () => {
+    list.innerHTML = [...select.options].map(o => `
+      <button type="button" class="options-item choice-item${o.value === select.value ? ' active' : ''}" data-status="${ed.escapeHtml(o.value)}"${o.value === select.value ? ' aria-current="true"' : ''}>${ed.escapeHtml(o.textContent)}</button>`).join('');
+    overlay.hidden = false;
+  });
+  list.addEventListener('click', (e) => {
+    const pick = e.target.closest('[data-status]');
+    if (!pick) return;
+    close();
+    if (pick.dataset.status !== select.value) ed.setShootStatusOnPage(pick.dataset.status);
+  });
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+  document.getElementById('shootStatusSheetCancelBtn').addEventListener('click', close);
 };
 ;
 
@@ -18450,7 +19388,7 @@ window.EyeParts.addPdfAfterExport = function addPdfAfterExport(ed) {
 // (Loaded before app.js, which runs it in its turn.)
 window.EyeParts = window.EyeParts || {};
 window.EyeParts.addAppMenuFrameworks = function addAppMenuFrameworks(ed) {
-  Object.assign(ed, { renderFrameworksList, closeFrameworksModal });
+  Object.assign(ed, { renderFrameworksList, closeFrameworksModal, openFrameworksModal });
   // ---------- Manage Frameworks modal ----------
   const frameworksModalOverlay = document.getElementById('frameworksModalOverlay'); ed.frameworksModalOverlay = frameworksModalOverlay;
   const frameworksBody = document.getElementById('frameworksBody');
@@ -18656,8 +19594,61 @@ window.EyeParts.addModalClose = function addModalClose(ed) {
 };
 ;
 
+// ---- pages/app-menu/look-choices.js ----
+// The notebook's colour and where the app starts: the choices drawn on
+// Options (round 2, 08-options) and on the standalone sun menu, and what a
+// tap on one of them does. Saved in state.presentation, as before.
+// (Loaded before app.js, which runs it in its turn.)
+window.EyeParts = window.EyeParts || {};
+window.EyeParts.addAppMenuLookChoices = function addAppMenuLookChoices(ed) {
+  Object.assign(ed, { colorChoicesHtml, startChoicesHtml, pickLookChoice });
+  const TICK = '<svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="5 12.5 10 17 19 7"/></svg>';
+  // Inside Documenting Fictions the shelf is the shut notebook, so there's
+  // no starting on it.
+  const START_CHOICES = [['last', 'Where I left off'], ['notebook', 'Notebook'], ['first', 'Overview']]
+    .filter(([key]) => !window.DF_SUITE || key !== 'notebook');
+
+  // A swatch for each colour: the band with its partner's line and half
+  // circle (styles/options-sheet.css draws them), ticked when it's the one.
+  function colorChoicesHtml() {
+    const now = ed.state.presentation.color;
+    return `<div class="opt-colors" role="radiogroup" aria-label="Notebook color">${ed.APP_COLORS.map(([key, name]) => `
+      <button type="button" class="opt-color" role="radio" data-color="${key}" aria-checked="${key === now}">
+        <span class="opt-swatch" data-swatch="${key}"><span class="opt-swatch-line"></span><span class="opt-swatch-sun"></span>${key === now ? `<span class="opt-swatch-tick">${TICK}</span>` : ''}</span>
+        <span class="opt-color-name">${name}</span>
+      </button>`).join('')}</div>`;
+  }
+
+  function startChoicesHtml() {
+    const now = ed.state.presentation.start;
+    return `<div class="opt-seg opt-seg-fit">${START_CHOICES.map(([key, name]) => `
+      <button type="button" data-start="${key}" class="${now === key ? 'active' : ''}" aria-pressed="${now === key}">${name}</button>`).join('')}</div>`;
+  }
+
+  // A tap on a colour or a start: saved, shown, and true; anything else false.
+  // `redraw` puts the choices back with the new one marked.
+  function pickLookChoice(button, redraw) {
+    if (button.dataset.color) {
+      ed.state.presentation.color = button.dataset.color;
+      ed.saveState();
+      ed.applyAppColor(ed.state.presentation.color);
+    } else if (button.dataset.start) {
+      ed.state.presentation.start = button.dataset.start;
+      ed.state.presentation.startPicked = true;
+      ed.saveState();
+    } else {
+      return false;
+    }
+    redraw();
+    return true;
+  }
+};
+;
+
 // ---- pages/app-menu/app-menu.js ----
-// The App menu.
+// Options, the app menu (round 2, 08-options): opening and closing it, the
+// notebook colour and start choices on it (look-choices.js), and how much
+// room the app takes, under Storage usage.
 // (Loaded before app.js, which runs it in its turn.)
 window.EyeParts = window.EyeParts || {};
 window.EyeParts.addAppMenu = function addAppMenu(ed) {
@@ -18666,6 +19657,22 @@ window.EyeParts.addAppMenu = function addAppMenu(ed) {
   // One sheet, laid out like ref's Options (user, 11-11): every setting is
   // on it at once, each choice marked where it stands, so nothing slides in.
   const appMenuOverlay = document.getElementById('appMenuOverlay');
+  const colorChoices = document.getElementById('appColorChoices');
+  const startChoices = document.getElementById('appStartChoices');
+
+  function drawLookChoices() {
+    colorChoices.innerHTML = ed.colorChoicesHtml();
+    startChoices.innerHTML = ed.startChoicesHtml();
+  }
+
+  // The storage used, under its row; left empty where the browser can't say.
+  function showStorageUsed() {
+    const hint = document.getElementById('storageUsageHint');
+    if (!(navigator.storage && navigator.storage.estimate)) return;
+    navigator.storage.estimate().then((est) => {
+      if (est && est.usage != null) hint.textContent = ed.formatStorageBytes(est.usage);
+    }).catch(() => {});
+  }
 
   function closeAppMenu() {
     appMenuOverlay.hidden = true;
@@ -18676,6 +19683,8 @@ window.EyeParts.addAppMenu = function addAppMenu(ed) {
     ed.updateNewShootGuideChoice();
     ed.updateDailyReportChoice();
     ed.updateLookTagsChoice();
+    drawLookChoices();
+    showStorageUsed();
     appMenuOverlay.hidden = false;
     appMenuOverlay.querySelector('.opt-sheet-body').scrollTop = 0;
   });
@@ -18687,7 +19696,58 @@ window.EyeParts.addAppMenu = function addAppMenu(ed) {
   document.getElementById('appMenuCancelBtn').addEventListener('click', closeAppMenu);
 
   appMenuOverlay.addEventListener('click', (e) => {
-    if (e.target === appMenuOverlay) closeAppMenu();
+    if (e.target === appMenuOverlay) { closeAppMenu(); return; }
+    const choice = e.target.closest('#appColorChoices button, #appStartChoices button');
+    if (choice) ed.pickLookChoice(choice, drawLookChoices);
+  });
+};
+;
+
+// ---- pages/app-menu/saved-lists.js ----
+// Saved lists, from Options (round 2, 08-options): one row for each list
+// the pickers offer. A row opens that list's own editor (the same one its
+// picker's "Edit saved" opens); closing the editor comes back here.
+// (Loaded before app.js, which runs it in its turn.)
+window.EyeParts = window.EyeParts || {};
+window.EyeParts.addAppMenuSavedLists = function addAppMenuSavedLists(ed) {
+  const overlay = document.getElementById('savedListsOverlay');
+  // Each list: how to open its editor, and the editor's own popup.
+  const LISTS = {
+    talent: ['openManageTalentsModal', 'manageTalentsOverlay'],
+    team: ['openManageTeamMembersModal', 'manageTeamMembersOverlay'],
+    locations: ['openManageLocationsModal', 'manageLocationsOverlay'],
+    lighting: ['openManageLightingSetupsModal', 'manageLightingSetupsOverlay'],
+    categories: ['openCategoryVisibilityModal', 'categoryVisibilityOverlay'],
+    frameworks: ['openFrameworksModal', 'frameworksModalOverlay'],
+  };
+
+  // Back to Options.
+  function closeSavedLists() {
+    overlay.hidden = true;
+    document.getElementById('appMenuOverlay').hidden = false;
+  }
+
+  document.getElementById('savedListsBtn').addEventListener('click', () => {
+    document.getElementById('appMenuOverlay').hidden = true;
+    overlay.hidden = false;
+  });
+  document.getElementById('savedListsCloseBtn').addEventListener('click', closeSavedLists);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) closeSavedLists(); });
+
+  document.getElementById('savedListsRows').addEventListener('click', (e) => {
+    const row = e.target.closest('[data-list]');
+    if (!row) return;
+    const [open, popupId] = LISTS[row.dataset.list];
+    const popup = document.getElementById(popupId);
+    overlay.hidden = true;
+    ed[open]();
+    // However the editor is closed, this list comes back.
+    const watch = new MutationObserver(() => {
+      if (!popup.hidden) return;
+      watch.disconnect();
+      overlay.hidden = false;
+    });
+    watch.observe(popup, { attributes: true, attributeFilter: ['hidden'] });
   });
 };
 ;
@@ -18725,9 +19785,9 @@ window.EyeParts.addTour = function addTour(ed) {
   eyeCards.addEventListener('click', (e) => { if (e.target === eyeCards && eyeCardsDim) eyeCardsDim(); });
 
   const eyeTourCards = () => [
-    ['Plan a shoot', 'Tap + New Shoot. Each shoot gets its own pages: basic info, logistics, team, direction, visuals and a shot list.'],
+    ['Plan a shoot', 'Tap + at the top of Overview. Each shoot gets its own pages: basic info, logistics, team, direction, visuals and a shot list.'],
     ['On the day, and after', 'Tick off the shot list as you go. Afterwards, write a reflection: what went right, what could be better, and lessons for next time.'],
-    ['Your week', 'Overview shows what’s coming up. Weekly keeps the week’s log, and Archive holds the shoots you’ve done.'],
+    ['Your week', 'Overview shows what needs you today and what’s coming up. Reflections keeps the week’s log, and Archive holds the shoots you’ve done.'],
     ...(window.DF_SUITE ? [['Mood boards from Ref', 'Send a board from Ref to a shoot and it shows on that shoot’s page, kept up to date until the shoot is captured.']] : []),
     ['Keep a copy', 'Everything is saved inside the app, on this phone. Now and then, back up all data in App options.'],
   ];
@@ -19218,6 +20278,94 @@ window.EyeParts.addAppMenuRestore = function addAppMenuRestore(ed) {
 };
 ;
 
+// ---- components/stats-words.js ----
+// The one-line sentence over each chart on Stats ("Nine of fourteen shoots
+// delivered. Two are waiting on your edit."). A chart's rows in, words out
+// (no page, no saved data), so it's unit tested
+// (tests/unit/the-eye/stats-words.test.mjs).
+// (Loaded before app.js, which runs it in its turn.)
+window.EyeParts = window.EyeParts || {};
+window.EyeParts.addStatsWords = function addStatsWords(ed) {
+  Object.assign(ed, { numberWord, statsSentence });
+  const NUMBER_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
+    'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty'];
+  const IN_THE_EDIT = ['waiting_for_selects', 'editing', 'rough_cut', 'client_review', 'revisions'];
+  const NOT_A_PLACE = ['No location set', '__other_locations__'];
+
+  // Up to twenty in words, then figures.
+  function numberWord(n) {
+    return Number.isInteger(n) && n >= 0 && n < NUMBER_WORDS.length ? NUMBER_WORDS[n] : String(n);
+  }
+  const capital = s => s.charAt(0).toUpperCase() + s.slice(1);
+  const count = (n, one, many) => `${numberWord(n)} ${n === 1 ? one : many}`;
+  const sum = rows => rows.reduce((total, d) => total + d.value, 0);
+
+  function status(rows) {
+    const total = sum(rows);
+    const delivered = sum(rows.filter(d => d.key === 'delivered'));
+    const edit = sum(rows.filter(d => IN_THE_EDIT.includes(d.key)));
+    const first = total === 1
+      ? (delivered ? 'Your one shoot is delivered.' : "Your one shoot isn't delivered yet.")
+      : `${capital(delivered ? numberWord(delivered) : 'none')} of ${numberWord(total)} shoots delivered.`;
+    if (!edit) return first;
+    return `${first} ${capital(numberWord(edit))} ${edit === 1 ? 'is' : 'are'} waiting on your edit.`;
+  }
+
+  // A kind of shoot as a countable noun: a row's `plural` ("wedding
+  // shoots"), else made from its label ("Content shoot" -> "content shoots").
+  const kinds = d => d.plural || d.label.toLowerCase().replace(/( shoot)?$/, ' shoots');
+  const aOrAn = words => `${/^[aeiou]/.test(words) ? 'an' : 'a'} ${words}`;
+
+  function categories(rows) {
+    const [top, next] = rows;
+    if (rows.length === 1 && top.value === 1) return `Your one shoot is ${aOrAn(kinds(top).replace(/s$/, ''))}.`;
+    if (rows.length === 1) return `${top.value === 2 ? 'Both' : `All ${numberWord(top.value)}`} are ${kinds(top)}.`;
+    if (next.value === top.value) return `${capital(kinds(top))} and ${kinds(next)} are level, ${numberWord(top.value)} each.`;
+    return `More ${kinds(top)} than anything else: ${numberWord(top.value)} of ${numberWord(sum(rows))}.`;
+  }
+
+  function team(rows) {
+    const roles = rows.filter(d => d.key !== '__none__');
+    if (!roles.length) return 'Just you on every shoot so far.';
+    const [top, next] = roles;
+    if (top.key === 'other') return 'Most of your team is listed as Other.';
+    const role = d => aOrAn(d.label.toLowerCase());
+    const level = next && next.value === top.value && next.key !== 'other';
+    return `You work with ${role(top)}${level ? ` and ${role(next)}` : ''} most often.`;
+  }
+
+  function locations(rows) {
+    const places = rows.filter(d => !NOT_A_PLACE.includes(d.key));
+    if (!places.length) return 'No locations set yet.';
+    const [top, next] = places;
+    if (top.value === 1) return places.length === 1 ? `One shoot so far, at ${top.label}.` : `${capital(numberWord(places.length))} places, one shoot each.`;
+    if (next && next.value === top.value) return `${top.label} and ${next.label} are level, ${numberWord(top.value)} shoots each.`;
+    return `${top.label} is where you shoot most: ${numberWord(top.value)} shoots.`;
+  }
+
+  function visualLanguages(rows) {
+    const [top, next] = rows;
+    if (next && next.value === top.value) return `${top.label} and ${next.label} come up most, on ${count(top.value, 'shoot', 'shoots')} each.`;
+    return `${top.label} comes up most, on ${count(top.value, 'shoot', 'shoots')}.`;
+  }
+
+  function regions(rows) {
+    if (rows.length === 1) return `Every shoot so far is in ${rows[0].label}.`;
+    if (rows[1].value === rows[0].value) return `Shot across ${numberWord(rows.length)} countries.`;
+    return `Shot across ${numberWord(rows.length)} countries, most in ${rows[0].label}.`;
+  }
+
+  const SENTENCES = { status, shootCategory: categories, teamMembers: team, location: locations, visualLanguage: visualLanguages, regions };
+
+  // `rows` as the chart draws them, most first: { key, label, value }.
+  function statsSentence(pageKey, rows) {
+    const say = SENTENCES[pageKey];
+    if (!say || !Array.isArray(rows) || !sum(rows)) return '';
+    return say(rows);
+  }
+};
+;
+
 // ---- pages/stats/stats-tab.js ----
 // The Stats tab: its charts and numbers.
 // (Loaded before app.js, which runs it in its turn.)
@@ -19237,7 +20385,7 @@ window.EyeParts.addStatsTab = function addStatsTab(ed) {
     return `M ${cx} ${cy} L ${start.x} ${start.y} A ${r} ${r} 0 ${largeArcFlag} 0 ${end.x} ${end.y} Z`;
   }
 
-  const PIE_CX = 100, PIE_CY = 100, PIE_R = 90;
+  const PIE_CX = 100, PIE_CY = 100, PIE_R = 100;
 
   // Builds slice paths (a lone 100% slice is drawn as a near-full arc rather
   // than a <circle> so it can grow in with the same sweep animation as
@@ -19315,7 +20463,7 @@ window.EyeParts.addStatsTab = function addStatsTab(ed) {
       counts[key] = (counts[key] || 0) + 1;
     });
     const data = Object.entries(counts)
-      .map(([key, value]) => ({ key, label: ed.CATEGORY_LABELS[key] || 'Uncategorized', value }))
+      .map(([key, value]) => ({ key, label: ed.CATEGORY_LABELS[key] || 'Uncategorized', plural: ed.CATEGORY_PLURAL_LABELS[key], value }))
       .sort((a, b) => b.value - a.value);
     ed.statsSliceFilters.shootCategory = {};
     data.forEach(d => {
@@ -19402,9 +20550,9 @@ window.EyeParts.addStatsTab = function addStatsTab(ed) {
 
   const ALL_STATS_PAGES = [
     { key: 'status', title: 'Status', build: buildStatusStats },
-    { key: 'visualLanguage', title: 'Visual Languages', build: buildVisualLanguageStats },
-    { key: 'shootCategory', title: 'Shoot Categories', build: buildCategoryStats },
-    { key: 'teamMembers', title: 'Team Members', build: buildTeamStats },
+    { key: 'visualLanguage', title: 'Visual languages', build: buildVisualLanguageStats },
+    { key: 'shootCategory', title: 'Categories', build: buildCategoryStats },
+    { key: 'teamMembers', title: 'Team', build: buildTeamStats },
     { key: 'location', title: 'Locations', build: buildLocationStats },
     { key: 'regions', title: 'Regions', custom: true },
   ];
@@ -19474,7 +20622,7 @@ window.EyeParts.addStatsRegionsMap = function addStatsRegionsMap(ed) {
       return {
         html: `
           <div class="stats-page stats-page-regions" data-key="regions">
-            <h2 class="stats-page-title">Regions</h2>
+            ${ed.statsPageHead('Regions', '')}
             <p class="empty-hint">Not enough data yet.</p>
           </div>
         `,
@@ -19484,20 +20632,10 @@ window.EyeParts.addStatsRegionsMap = function addStatsRegionsMap(ed) {
     const { slices } = ed.buildPieSVG(data);
     regionsSliceColors = Object.fromEntries(slices.map(s => [s.key, s.color]));
     const groupsHtml = data.map((d, i) => {
-      const cityRowsHtml = d.cities.map(c => `
-        <button type="button" class="stats-legend-row stats-legend-row-nested" data-key="${ed.escapeHtml(c.key)}">
-          <span class="legend-swatch legend-swatch-blank"></span>
-          <span class="legend-label">${ed.escapeHtml(c.label)}</span>
-          <span class="legend-pct">${c.pct}%</span>
-        </button>
-      `).join('');
+      const cityRowsHtml = d.cities.map(c => ed.statsLegendRow(c, 'stats-legend-row-nested', '')).join('');
       return `
         <div class="stats-region-group">
-          <button type="button" class="stats-legend-row stats-region-heading" data-key="${ed.escapeHtml(d.key)}">
-            <span class="legend-swatch" style="background:${slices[i].color}"></span>
-            <span class="legend-label">${ed.escapeHtml(d.label)}</span>
-            <span class="legend-pct">${slices[i].pct}%</span>
-          </button>
+          ${ed.statsLegendRow(slices[i], 'stats-region-heading')}
           <div class="stats-region-cities">${cityRowsHtml}</div>
         </div>
       `;
@@ -19505,7 +20643,7 @@ window.EyeParts.addStatsRegionsMap = function addStatsRegionsMap(ed) {
     return {
       html: `
         <div class="stats-page stats-page-regions" data-key="regions">
-          <h2 class="stats-page-title">Regions</h2>
+          ${ed.statsPageHead('Regions', ed.statsSentence('regions', data))}
           <div class="world-map-toolbar">
             <button type="button" class="map-zoom-btn" id="worldMapZoomOutBtn" aria-label="Zoom out">&minus;</button>
             <button type="button" class="map-zoom-btn" id="worldMapZoomInBtn" aria-label="Zoom in">+</button>
@@ -19672,18 +20810,42 @@ window.EyeParts.addStatsRegionsMap = function addStatsRegionsMap(ed) {
 ;
 
 // ---- pages/stats/stats-pages.js ----
-// The Stats tab's pages: swiping between them, the dots, the year filters, drawing it.
+// The Stats tab's pages, one chart each: its name, a sentence about it
+// (components/stats-words.js), the sliced circle and the legend; swiping
+// between them, "1 of 5" and the dots, the year, drawing it.
 // (Loaded before app.js, which runs it in its turn.)
 window.EyeParts = window.EyeParts || {};
 window.EyeParts.addStatsPages = function addStatsPages(ed) {
-  Object.assign(ed, { renderStatsDots, updateStatsCarouselHeight, positionStatsTrack, renderStats, openStatsDetail, closeStatsDetail });
+  Object.assign(ed, { renderStatsDots, updateStatsCarouselHeight, positionStatsTrack, renderStats, openStatsDetail, closeStatsDetail, statsPageHead, statsLegendRow });
+  const CHEVRON = '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><polyline points="9 5 16 12 9 19"/></svg>';
+  const CHEVRON_DOWN = '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>';
+
+  // The chart's name and the one line about it.
+  function statsPageHead(title, sentence) {
+    return `<h2 class="stats-page-title">${ed.escapeHtml(title)}</h2>`
+      + (sentence ? `<p class="stats-sentence">${ed.escapeHtml(sentence)}</p>` : '');
+  }
+
+  // One legend row: swatch, name, percent, how many, and a chevron (it
+  // opens the shoots behind it).
+  function statsLegendRow(s, cls = '', color = s.color) {
+    return `
+      <button type="button" class="stats-legend-row ${cls}" data-key="${ed.escapeHtml(String(s.key))}">
+        <span class="legend-swatch${color ? '' : ' legend-swatch-blank'}"${color ? ` style="background:${color}"` : ''}></span>
+        <span class="legend-label">${ed.escapeHtml(s.label)}</span>
+        <span class="legend-pct">${s.pct}%</span>
+        <span class="legend-count">${s.value}</span>
+        <span class="legend-chevron">${CHEVRON}</span>
+      </button>`;
+  }
+
   function renderStatsPage(page, data) {
     const total = data.reduce((sum, d) => sum + d.value, 0);
     if (total === 0) {
       return {
         html: `
           <div class="stats-page" data-key="${page.key}">
-            <h2 class="stats-page-title">${ed.escapeHtml(page.title)}</h2>
+            ${statsPageHead(page.title, '')}
             <p class="empty-hint">Not enough data yet.</p>
           </div>
         `,
@@ -19691,19 +20853,12 @@ window.EyeParts.addStatsPages = function addStatsPages(ed) {
       };
     }
     const { pathsHtml, slices } = ed.buildPieSVG(data);
-    const legendHtml = slices.map(s => `
-      <button type="button" class="stats-legend-row" data-key="${ed.escapeHtml(String(s.key))}">
-        <span class="legend-swatch" style="background:${s.color}"></span>
-        <span class="legend-label">${ed.escapeHtml(s.label)}</span>
-        <span class="legend-pct">${s.pct}%</span>
-      </button>
-    `).join('');
     return {
       html: `
         <div class="stats-page" data-key="${page.key}">
-          <h2 class="stats-page-title">${ed.escapeHtml(page.title)}</h2>
-          <svg class="pie-chart" viewBox="0 0 200 200">${pathsHtml}</svg>
-          <div class="stats-legend">${legendHtml}</div>
+          ${statsPageHead(page.title, ed.statsSentence(page.key, data))}
+          <svg class="pie-chart" viewBox="0 0 200 200" aria-hidden="true">${pathsHtml}</svg>
+          <div class="stats-legend">${slices.map(s => statsLegendRow(s)).join('')}</div>
         </div>
       `,
       slices,
@@ -19712,6 +20867,8 @@ window.EyeParts.addStatsPages = function addStatsPages(ed) {
 
   const statsCarousel = document.getElementById('statsCarousel'); ed.statsCarousel = statsCarousel;
   const statsDotsEl = document.getElementById('statsDots');
+  const statsCountEl = document.getElementById('statsPageCount');
+  const statsHintEl = document.getElementById('statsSwipeHint');
   const statsYearFiltersEl = document.getElementById('statsYearFilters');
 
   // Which page is showing. Tracked directly rather than read back off a
@@ -19720,8 +20877,16 @@ window.EyeParts.addStatsPages = function addStatsPages(ed) {
   ed.statsPageIdx = 0;
   let statsSlideLocked = false;
 
+  // "1 of 5", the dots, and which chart a swipe brings next.
   function renderStatsDots() {
-    statsDotsEl.innerHTML = ed.STATS_PAGES.map((p, i) => `<span class="stats-dot ${i === ed.statsPageIdx ? 'active' : ''}"></span>`).join('');
+    const pages = ed.STATS_PAGES;
+    const at = ed.statsPageIdx;
+    statsDotsEl.innerHTML = pages.map((p, i) => `<span class="stats-dot ${i === at ? 'active' : ''}"></span>`).join('');
+    statsCountEl.textContent = `${at + 1} of ${pages.length}`;
+    const next = pages[at + 1];
+    const back = pages[at - 1];
+    statsHintEl.textContent = next ? `Swipe the chart for ${next.title.toLowerCase()}` : back ? `Swipe back for ${back.title.toLowerCase()}` : '';
+    statsHintEl.hidden = !next && !back;
   }
 
   // A horizontal flex row's own height, left to auto, always matches its
@@ -19746,19 +20911,21 @@ window.EyeParts.addStatsPages = function addStatsPages(ed) {
     ed.turnScreenPage('stats', ed.statsFlat().findIndex(p => p.stat === clamped));
   }
 
-  // A page only changes on a clear, mostly-horizontal swipe, judged when the
-  // finger lifts — the page never follows the finger sideways, so nothing
+  // A swipe anywhere in Stats changes the chart (the navigator changes
+  // sections), and stops at the first and last. A page only changes on a
+  // clear, mostly-horizontal swipe, judged when the finger lifts — the page never follows the finger sideways, so nothing
   // from the next page slides partway into view. Same thresholds as the
   // tab-to-tab swipe. The world map scrolls sideways on its own, so a swipe
   // that starts on it only turns the page once the map is already at its
   // edge in that direction (mirroring how a scroll would chain).
   (function setupStatsSwipe() {
+    const statsView = document.getElementById('view-stats');
     let startX = null;
     let startY = null;
     let mapEdges = null;
 
-    statsCarousel.addEventListener('touchstart', (e) => {
-      if (e.touches.length !== 1) { startX = null; return; }
+    statsView.addEventListener('touchstart', (e) => {
+      if (e.touches.length !== 1 || ed.anyPopupOpen()) { startX = null; return; }
       startX = e.touches[0].clientX;
       startY = e.touches[0].clientY;
       const map = e.target.closest('.world-map-scroll');
@@ -19767,7 +20934,7 @@ window.EyeParts.addStatsPages = function addStatsPages(ed) {
         : null;
     }, { passive: true });
 
-    statsCarousel.addEventListener('touchend', (e) => {
+    statsView.addEventListener('touchend', (e) => {
       if (startX === null) return;
       const dx = e.changedTouches[0].clientX - startX;
       const dy = e.changedTouches[0].clientY - startY;
@@ -19779,10 +20946,10 @@ window.EyeParts.addStatsPages = function addStatsPages(ed) {
       // One page per swipe: further swipes wait until this one has landed.
       statsSlideLocked = true;
       setTimeout(() => { statsSlideLocked = false; }, 350);
-      ed.stepScreenPage(dir);
+      goToStatsPage(ed.statsPageIdx + dir);
     }, { passive: true });
 
-    statsCarousel.addEventListener('touchcancel', () => { startX = null; }, { passive: true });
+    statsView.addEventListener('touchcancel', () => { startX = null; }, { passive: true });
   })();
 
   // Delegated (survives renderStats() rebuilding the carousel's innerHTML on
@@ -19809,7 +20976,10 @@ window.EyeParts.addStatsPages = function addStatsPages(ed) {
     const chips = [...sortedYears.map(y => ({ key: y, label: y })), { key: 'all', label: 'All time' }];
     statsYearFiltersEl.innerHTML = chips.map(c => `<button type="button" class="chip ${c.key === ed.statsYearFilter ? 'active' : ''}" data-year="${c.key}">${ed.escapeHtml(c.label)}</button>`).join('');
     const activeChip = chips.find(c => c.key === ed.statsYearFilter);
-    document.getElementById('statsYearFilterToggle').textContent = `Filter: ${activeChip ? activeChip.label : ed.statsYearFilter}`;
+    const yearBtn = document.getElementById('statsYearFilterToggle');
+    const label = activeChip ? activeChip.label : ed.statsYearFilter;
+    yearBtn.innerHTML = `${ed.escapeHtml(label)} ${CHEVRON_DOWN}`;
+    yearBtn.setAttribute('aria-label', `Year: ${label}`);
   }
 
   document.getElementById('statsYearFilterToggle').addEventListener('click', () => {
@@ -19922,19 +21092,17 @@ window.EyeParts.addRenderAll = function addRenderAll(ed) {
 };
 ;
 
-// ---- pages/notices/day-after.js ----
-// The check-in the day after a shoot.
+// ---- pages/notices/report-day.js ----
+// When the app's day starts (5am, not midnight), and "a, b and c" from a list
+// of names: for the Today card, the daily report and the Monday brief.
 // (Loaded before app.js, which runs it in its turn.)
 window.EyeParts = window.EyeParts || {};
-window.EyeParts.addNoticesDayAfter = function addNoticesDayAfter(ed) {
+window.EyeParts.addNoticesReportDay = function addNoticesReportDay(ed) {
   Object.assign(ed, { effectiveReportDateStr, joinWithAnd });
-  // ---------- Day-after shoot check-in ----------
-  const DAY_AFTER_PROMPT_KEY = 'dailies_day_after_prompt_shown_v1'; ed.DAY_AFTER_PROMPT_KEY = DAY_AFTER_PROMPT_KEY;
-
-  // The once-per-day popups (day-after check-in, daily report) treat the
-  // "day" as not rolling over until 5am, not midnight — a user still awake
-  // at 1am is still mentally in the previous day, and shouldn't get a new
-  // day's check-in (or have last night's shoot already counted as
+  // The app's day (the Today card, the daily report, Shoot mode left on)
+  // doesn't roll over until 5am, not midnight — a user still awake
+  // at 1am is still mentally in the previous day, and shouldn't be asked
+  // about a new day's shoots (or have last night's shoot already counted as
   // "yesterday") just because the clock ticked past 12.
   function effectiveReportDateStr() {
     const d = new Date();
@@ -19961,7 +21129,6 @@ window.EyeParts.addShootModeShotList = function addShootModeShotList(ed) {
   // mode rather than a screen — once switched on it survives closing the app and
   // comes straight back on the next launch, until it's explicitly ended.
   const SHOOT_MODE_KEY = 'dailies_shoot_mode_shoot_v1';
-  const SHOOT_MODE_ASKED_KEY = 'dailies_shoot_mode_asked_v1'; ed.SHOOT_MODE_ASKED_KEY = SHOOT_MODE_ASKED_KEY;
   const shootModeOverlay = document.getElementById('shootModeOverlay'); ed.shootModeOverlay = shootModeOverlay;
 
   function getShootModeShootId() {
@@ -19983,6 +21150,12 @@ window.EyeParts.addShootModeShotList = function addShootModeShotList(ed) {
   // a different interaction to relearn mid-shoot — just without the
   // checked-to-bottom sort, since watching the active list you're working
   // through reshuffle itself would be more disorienting than helpful here.
+  // "1 of 4" beside the list's name: how many are shot so far.
+  function renderShootModeShotCount(shoot) {
+    const shots = (shoot.shotList || []).filter(item => item && ed.hasText(item.text));
+    document.getElementById('shootModeShotCount').textContent = shots.length ? `${shots.filter(item => item.checked).length} of ${shots.length}` : '';
+  }
+
   function renderShootModeShots(shoot, focusIdx) {
     const list = document.getElementById('shootModeShotList');
     const shots = shoot.shotList || [];
@@ -19996,6 +21169,7 @@ window.EyeParts.addShootModeShotList = function addShootModeShotList(ed) {
       </div>
     `).join('');
     document.getElementById('shootModeShotsEmpty').hidden = shots.length !== 0;
+    renderShootModeShotCount(shoot);
 
     list.querySelectorAll('.star-shot').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -20014,6 +21188,7 @@ window.EyeParts.addShootModeShotList = function addShootModeShotList(ed) {
         shoot.shotList[idx].checked = cb.checked;
         ed.saveState();
         cb.closest('.shoot-mode-shot-row').classList.toggle('shot-checked', cb.checked);
+        renderShootModeShotCount(shoot);
         ed.renderAll();
         ed.renderShootModeClock();
       });
@@ -20024,6 +21199,7 @@ window.EyeParts.addShootModeShotList = function addShootModeShotList(ed) {
         shoot.shotList[Number(textarea.dataset.idx)].text = textarea.value;
         ed.autoSizeTextarea(textarea);
         ed.saveState();
+        renderShootModeShotCount(shoot);
       });
       textarea.addEventListener('keydown', (e) => {
         if (e.key !== 'Enter') return;
@@ -20334,9 +21510,11 @@ window.EyeParts.addShootModePages = function addShootModePages(ed) {
     return atoms;
   }
 
-  // One page that scrolls: its three parts (the shot list, the mood board and
-  // the notes) one under another.
-  const shootModePages = () => (ed.shootModeFlows ? [{ part: 'main', i: 0 }] : []); ed.shootModePages = shootModePages;
+  // Three pages, each scrolling on its own (round 2, 07-shoot-mode): the
+  // shot list, the mood board, then the notes. A swipe turns them; the dots
+  // under the clock say which one this is.
+  const PARTS = ['main', 'board', 'more'];
+  const shootModePages = () => (ed.shootModeFlows ? PARTS.map(part => ({ part, i: 0 })) : []); ed.shootModePages = shootModePages;
 
   // The mood board's photos in rows of `cols` (a page breaks between rows).
   function groupShootModeBoard(cols) {
@@ -20412,6 +21590,8 @@ window.EyeParts.addShootModePages = function addShootModePages(ed) {
       ed.drawFlowPage(ed.shootModeFlows[page.part], page.i);
     }
     document.getElementById('shootModeFoot').textContent = `${ed.shootModeAt + 1} / ${Math.max(1, pages.length)}`;
+    document.getElementById('shootModeDots').innerHTML = pages.map((p, i) => `<span class="${i === ed.shootModeAt ? 'on' : ''}"></span>`).join('');
+    shootModePage.scrollTop = 0;
     document.getElementById('shootModePrev').disabled = ed.shootModeAt <= 0;
     document.getElementById('shootModeNext').disabled = ed.shootModeAt >= pages.length - 1;
     ed.queueLastPlace();
@@ -20547,13 +21727,13 @@ window.EyeParts = window.EyeParts || {};
 window.EyeParts.addShootModeClock = function addShootModeClock(ed) {
   Object.assign(ed, { startShootModeClock, stopShootModeClock, shootDateTime, shootWrapAt, renderShootModeClock });
   // ---------- Shoot mode clock ----------
-  // Under the shoot's name: when it wraps and, on the shoot's day, when it
-  // starts until it has, then how long is left ("Wrap 6:30 PM · 1h 12m
-  // left", then "10m over"). Tapping the wrap
-  // time moves it: the shoot's own end time, for a shoot that's running
-  // long. Under that, golden hour when it falls inside the shoot, and with
-  // MUST_HAVE_WARNING_MINUTES or less to go, how many must-have (starred)
-  // shots are still to get. Redrawn every 30 seconds while Shoot mode is up,
+  // Under the shoot's name: on the shoot's day, when it starts until it
+  // has, then how long is left as the big figure ("1h 12m", left until
+  // wrap; then "10m", over wrap), and at the right when it wraps. Tapping
+  // the wrap time moves it: the shoot's own end time, for a shoot that's
+  // running long. Under that, golden hour when it falls inside the shoot,
+  // and with MUST_HAVE_WARNING_MINUTES or less to go, how many must-have
+  // (starred) shots are still to get. Redrawn every 30 seconds while Shoot mode is up,
   // and whenever a shot is ticked, starred or removed.
   const MUST_HAVE_WARNING_MINUTES = 45;
   let shootModeClockTimer = null;
@@ -20593,12 +21773,9 @@ window.EyeParts.addShootModeClock = function addShootModeClock(ed) {
     return ed.prettyTime(`${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`);
   }
 
-  // "5:41–6:29 PM", or "11:40 AM–12:15 PM" across noon.
-  function clockRangeOf(from, to) {
-    const a = clockTimeOf(from);
-    const b = clockTimeOf(to);
-    return a.slice(-2) === b.slice(-2) ? `${a.slice(0, -3)}–${b}` : `${a}–${b}`;
-  }
+  // "5:41", for the golden hour chip.
+  const shortTimeOf = date => clockTimeOf(date).replace(/\s*[AP]M$/i, '');
+  const HALF_SUN = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M1 12a11 11 0 0 1 22 0z" fill="currentColor"/></svg>';
 
   // "1h 12m", "2h", "45m".
   function formatMinutes(mins) {
@@ -20623,7 +21800,8 @@ window.EyeParts.addShootModeClock = function addShootModeClock(ed) {
     if (!shoot) return;
     const now = new Date();
     const input = document.getElementById('shootModeWrapInput');
-    document.getElementById('shootModeWrapPill').textContent = shoot.endTime ? `Wrap ${ed.prettyTime(shoot.endTime)}` : 'Set wrap time';
+    document.getElementById('shootModeWrapPill').textContent = shoot.endTime ? ed.prettyTime(shoot.endTime) : 'Not set';
+    document.getElementById('shootModeWrapLabel').textContent = shoot.endTime ? 'Wrap, tap to move' : 'Wrap, tap to set';
     // Not while the picker's open on it: its wheel writes as it turns.
     if (document.activeElement !== input) input.value = shoot.endTime || nextHalfHour(now);
 
@@ -20634,16 +21812,23 @@ window.EyeParts.addShootModeClock = function addShootModeClock(ed) {
     const wrap = onTheDay ? shootWrapAt(shoot) : null;
     const start = onTheDay ? shootDateTime(shoot.date, shoot.startTime) : null;
     let minsLeft = null;
-    let leftText = '';
+    let figure = '';
+    let label = '';
     if (start && now < start) {
-      leftText = `Starts ${ed.prettyTime(shoot.startTime)}`;
+      figure = ed.prettyTime(shoot.startTime);
+      label = 'Starts';
     } else if (wrap) {
       const ms = wrap - now;
       minsLeft = ms > 0 ? Math.ceil(ms / 60000) : -Math.floor(-ms / 60000);
-      if (minsLeft > 0) leftText = `${formatMinutes(minsLeft)} left`;
-      else leftText = minsLeft < 0 ? `${formatMinutes(-minsLeft)} over` : "It's wrap time";
+      if (minsLeft > 0) [figure, label] = [formatMinutes(minsLeft), 'Left until wrap'];
+      else if (minsLeft < 0) [figure, label] = [formatMinutes(-minsLeft), 'Over wrap'];
+      else [figure, label] = ['Now', "It's wrap time"];
     }
-    document.getElementById('shootModeTimeLeft').textContent = leftText;
+    const leftEl = document.getElementById('shootModeLeft');
+    leftEl.hidden = !figure;
+    leftEl.classList.toggle('is-over', minsLeft !== null && minsLeft < 0);
+    document.getElementById('shootModeTimeLeft').textContent = figure;
+    document.getElementById('shootModeLeftLabel').textContent = label;
 
     const mustHaves = (shoot.shotList || []).filter(item => item && item.starred && !item.checked && ed.hasText(item.text)).length;
     const mustHavesEl = document.getElementById('shootModeMustHaves');
@@ -20655,9 +21840,8 @@ window.EyeParts.addShootModeClock = function addShootModeClock(ed) {
     const golden = coords ? ed.shootGoldenHour(shoot, coords, now) : null;
     goldenEl.hidden = !golden;
     if (golden) {
-      goldenEl.textContent = golden.start <= now
-        ? `Golden hour now, until ${clockTimeOf(golden.end)}`
-        : `Golden hour ${clockRangeOf(golden.start, golden.end)}`;
+      const words = golden.start <= now ? `Golden hour till ${shortTimeOf(golden.end)}` : `Golden hour ${shortTimeOf(golden.start)}`;
+      goldenEl.innerHTML = `${HALF_SUN}<span>${words}</span>`;
     }
   }
 
@@ -20791,12 +21975,11 @@ window.EyeParts.addShootModeLastTime = function addShootModeLastTime(ed) {
   Object.assign(ed, { showShootModeLastTime });
   // ---------- Last time, in Shoot mode ----------
   // The first sentence of the lessons from the newest shoot of the same
-  // category shot on or before this one (lastShootWithLessons), in the same
-  // "Last time (name, date)" line the shoot page's guide uses, at the top of
-  // the first page. Read-only here: the Shooting notes page is the place to
+  // category shot on or before this one (lastShootWithLessons), under a
+  // "Last time, name on date" lead, in a card at the top of the first page. Read-only here: the Shooting notes page is the place to
   // copy it to if it's worth keeping.
-  // When that leaves some of the lessons out, a small "…" pill closes the
-  // quote: a tap on it (or on the quote) opens all of it in place, the pill
+  // When that leaves some of the lessons out, a small "…" pill ends the
+  // line: a tap on it (or on the quote) opens all of it in place, the pill
   // turning to an up arrow to fold it back — no "Read more" words added.
   function showShootModeLastTime(shoot) {
     const el = document.getElementById('shootModeLastTime');
@@ -20811,19 +21994,19 @@ window.EyeParts.addShootModeLastTime = function addShootModeLastTime(ed) {
     const first = (lessons.match(/^.*?[.!?…](?=\s+[A-Z“"‘'(]|$)/) || [lessons])[0];
     const line = first.length > 160 ? first.slice(0, 160).replace(/\s+\S*$/, '') : first;
     const when = ed.prettyDate(past.date);
-    const source = when ? `${ed.shootDisplayName(past)}, ${when}` : ed.shootDisplayName(past);
-    const lead = `<span class="field-hint-bold">Last time</span> (${ed.escapeHtml(source)}): `;
+    const source = when ? `${ed.shootDisplayName(past)} on ${when}` : ed.shootDisplayName(past);
+    const lead = `<span class="shoot-mode-last-time-lead">Last time, ${ed.escapeHtml(source)}</span>`;
     if (line === lessons) {
-      el.innerHTML = `${lead}“${ed.escapeHtml(line)}”`;
+      el.innerHTML = `${lead}${ed.escapeHtml(line)}`;
       return;
     }
-    // The quote stays plain text, so it runs on from "Last time (…):" like
-    // before (a <button> always lays out as a block); only the pill is one.
-    el.innerHTML = `${lead}<span class="shoot-mode-last-time-quote"></span><button type="button" class="shoot-mode-last-time-more" aria-expanded="false"></button>”`;
+    // The lesson stays plain text under its lead (a <button> always lays
+    // out as a block); only the pill after it is one.
+    el.innerHTML = `${lead}<span class="shoot-mode-last-time-quote"></span><button type="button" class="shoot-mode-last-time-more" aria-expanded="false"></button>`;
     const quote = el.querySelector('.shoot-mode-last-time-quote');
     const more = el.querySelector('.shoot-mode-last-time-more');
     const show = (open) => {
-      quote.textContent = `“${open ? lessons : line}`;
+      quote.textContent = open ? lessons : line;
       more.setAttribute('aria-expanded', open ? 'true' : 'false');
       more.setAttribute('aria-label', open ? 'Show less' : 'Show the rest');
       more.innerHTML = open
@@ -20837,12 +22020,8 @@ window.EyeParts.addShootModeLastTime = function addShootModeLastTime(ed) {
     quote.addEventListener('click', flip);
   }
 
+  // Exit, up top: out of Shoot mode with nothing changed.
   document.getElementById('shootModeExitBtn').addEventListener('click', ed.exitShootMode);
-  // The bottom bar's "Exit", beside "Done shooting": the same as the X up
-  // top — out of Shoot mode with nothing changed — for someone who only
-  // opened it to look, or by accident, and is looking down there for a way
-  // out rather than up at the X.
-  document.getElementById('shootModeLeaveBtn').addEventListener('click', ed.exitShootMode);
 
   // Same field as the main edit form's Shot list section (#shootShootingNotes)
   // — writes straight to the shoot, same as every other Shoot Mode field.
@@ -20940,293 +22119,6 @@ window.EyeParts.addShootModeLastTime = function addShootModeLastTime(ed) {
 
   document.getElementById('enterShootModeBtn').addEventListener('click', () => {
     if (ed.currentShootId) ed.openShootMode(ed.currentShootId);
-  });
-};
-;
-
-// ---- pages/archive-mode/archive-mode.js ----
-// Archive mode.
-// (Loaded before app.js, which runs it in its turn.)
-window.EyeParts = window.EyeParts || {};
-window.EyeParts.addArchiveMode = function addArchiveMode(ed) {
-  Object.assign(ed, { archiveModeSectionHeading, drawArchivePage, breakArchivePages, openArchiveMode, exitArchiveMode });
-  // ---------- Archive mode ----------
-  // A read-only counterpart to Shoot mode for a shoot that's already done —
-  // a condensed report (Basic info, a trimmed Logistics/Team, the idea,
-  // shooting notes, the reflection in full, final images) instead of a
-  // working view, since there's nothing left to plan or shoot. No persisted
-  // "survives a restart" id like Shoot mode's — this is a quick look, not a
-  // mode you'd want to still be in after relaunching the app.
-  const archiveModeOverlay = document.getElementById('archiveModeOverlay'); ed.archiveModeOverlay = archiveModeOverlay;
-  ed.archiveModeShootId = null;
-
-  // One label-over-value block, styled like Shoot Mode's Quick review fields
-  // but a plain div rather than a button — nothing here is tappable. An
-  // empty label leaves just the value, under a heading that already names it.
-  function archiveModeField(label, value) {
-    const div = document.createElement('div');
-    div.className = 'archive-mode-field';
-    div.innerHTML = `
-      ${label ? `<p class="shoot-mode-review-label">${ed.escapeHtml(label)}</p>` : ''}
-      <div class="archive-mode-value"><p class="shoot-mode-review-value jb-in">${ed.escapeHtml(value)}</p></div>
-    `;
-    return div;
-  }
-
-  function archiveModeSectionHeading(text, colorClass) {
-    const h3 = document.createElement('h3');
-    h3.className = `shoot-mode-section-heading ${colorClass}`;
-    h3.textContent = text;
-    return h3;
-  }
-
-  function renderArchiveModeBody(shoot) {
-    const body = document.getElementById('archiveModeBody');
-    body.innerHTML = '';
-    const sectionHeading = (text) => archiveModeSectionHeading(text, '');
-
-    // Whichever of Title/Talent the header's shootDisplayName actually drew
-    // from is skipped below so it isn't said twice — titleDisplayMode picks
-    // talent-first by default, so that's normally Talent, but flips to Title
-    // when the app's set to show titles first. The other one, if present,
-    // still adds information the header alone doesn't carry (e.g. a title
-    // distinct from whoever's in it, or extra talents beyond the first).
-    const displayName = ed.shootDisplayName(shoot);
-    const talentNames = (shoot.talents || []).map(t => t.name).filter(ed.hasText);
-    const basicInfoFields = [];
-    basicInfoFields.push(['Category', ed.CATEGORY_LABELS[shoot.category] || 'Uncategorized']);
-    if (ed.hasText(shoot.title) && shoot.title !== displayName) basicInfoFields.push(['Title', shoot.title]);
-    if (talentNames.length && !(talentNames.length === 1 && talentNames[0] === displayName)) {
-      basicInfoFields.push(['Talent', talentNames.join(', ')]);
-    }
-    if (basicInfoFields.length) {
-      body.appendChild(sectionHeading('Basic info'));
-      basicInfoFields.forEach(([label, value]) => body.appendChild(archiveModeField(label, value)));
-    }
-
-    const logisticsFields = [];
-    // A postponed or canceled shoot keeps its date as the original plan
-    // (see isOriginalPlanDate), so it's labelled that way here too.
-    if (ed.hasText(shoot.date)) logisticsFields.push([ed.isOriginalPlanDate(shoot) ? 'Originally' : 'Shoot date', ed.prettyDate(shoot.date)]);
-    const locationText = ed.formatLocationDisplay(shoot.location);
-    if (ed.hasText(locationText)) logisticsFields.push(['Location', locationText]);
-    if (logisticsFields.length) {
-      body.appendChild(sectionHeading('Logistics'));
-      logisticsFields.forEach(([label, value]) => body.appendChild(archiveModeField(label, value)));
-    }
-
-    // Only a shoot that had a team says who was on it — the same "team
-    // required: yes" switch the page and the PDFs go by. Members kept on a
-    // shoot that was switched to solo stay saved, just not listed here.
-    const teamMembers = (shoot.teamRequired === 'yes' ? (shoot.teamMembers || []) : []).filter(tm => ed.hasText(tm.name));
-    if (teamMembers.length) {
-      body.appendChild(sectionHeading('Team'));
-      teamMembers.forEach(tm => {
-        const roleLabel = (ed.TEAM_ROLE_OPTIONS.find(([val]) => val === tm.role) || [null, 'Other'])[1];
-        body.appendChild(archiveModeField(roleLabel, tm.name));
-      });
-    }
-
-    // What the shoot was about, in the page's own Direction wording, so the
-    // report says more than who/when/where: only the boxes this kind of
-    // shoot has on its page (directionFieldApplies — no story boxes on a
-    // headshot, no concept on an event) and only ones with something in
-    // them. Comes after Team, where Direction sits on the page.
-    const ideaFields = [
-      ['premise', 'Concept'],
-      ['elevatorPitch', 'Elevator pitch'],
-      ['character', 'Character/Personality'],
-      ['worldNotes', 'World-building notes'],
-    ].filter(([key]) => ed.directionFieldApplies(shoot, key) && ed.hasText(shoot[key]));
-    if (ideaFields.length) {
-      body.appendChild(sectionHeading('The idea'));
-      ideaFields.forEach(([key, label]) => body.appendChild(archiveModeField(label, shoot[key])));
-    }
-
-    // Shooting notes, worth looking back on — after the idea, where they
-    // sit on the page (under the shot list, which isn't repeated here). The
-    // heading already says what they are, so no label over the text.
-    if (ed.hasText(shoot.shootingNotes)) {
-      body.appendChild(sectionHeading('Shooting notes'));
-      body.appendChild(archiveModeField('', shoot.shootingNotes.trim()));
-    }
-
-    // Reflection answers are kept when a shoot steps back from Captured, but
-    // only shown once it's Captured or later — same as the shoot page.
-    const reflectionFields = [];
-    if (ed.isPostCaptureStatus(shoot.status)) {
-      if (ed.hasText(shoot.whatWentRight)) reflectionFields.push(['What went right', shoot.whatWentRight]);
-      if (ed.hasText(shoot.couldBeBetter)) reflectionFields.push(["What could've gone better", shoot.couldBeBetter]);
-      if (ed.hasText(shoot.lessonsLearned)) reflectionFields.push(['Lessons for next time', shoot.lessonsLearned]);
-    }
-    if (reflectionFields.length) {
-      body.appendChild(sectionHeading('Reflection'));
-      reflectionFields.forEach(([label, value]) => body.appendChild(archiveModeField(label, value)));
-    }
-
-    // Video's counterpart to final images in this report: what was made and
-    // where it went, in the same label-over-value fields as above. Video has
-    // no final images — any stored from before the shoot was switched to
-    // video stay in IndexedDB, just aren't shown.
-    const deliverableFields = ed.videoDeliverableFields(shoot);
-    if (deliverableFields.length) {
-      body.appendChild(sectionHeading('Deliverables'));
-      deliverableFields.forEach(([label, value]) => body.appendChild(archiveModeField(label, value)));
-    }
-    if (ed.isVideoShoot(shoot)) return;
-
-    ed.idbGetImages(ed.finalImagesKey(shoot.id)).then(images => {
-      if (!images.length || ed.archiveModeShootId !== shoot.id) { archiveWanted = null; return; }
-      if (!reflectionFields.length) body.appendChild(sectionHeading('Reflection'));
-      // A grid per row of three, so a page can break between rows.
-      let row = null;
-      images.forEach((img, idx) => {
-        if (idx % 3 === 0) {
-          row = document.createElement('div');
-          row.className = 'moodboard-grid archive-mode-final-images';
-          body.appendChild(row);
-        }
-        const thumb = document.createElement('div');
-        thumb.className = 'moodboard-thumb';
-        thumb.innerHTML = `<img src="${img.src}" alt="" />`;
-        thumb.querySelector('img').addEventListener('click', () => {
-          ed.openImageViewer(images, idx, ed.finalImagesKey(shoot.id), null, false);
-        });
-        row.appendChild(thumb);
-      });
-      breakArchivePages();
-      archiveWanted = null;
-    }).catch(() => { archiveWanted = null; });
-  }
-
-  // The summary is a page of the notebook: it breaks at the bottom and carries
-  // on over the leaf, the same as a shoot.
-  const archiveModePage = archiveModeOverlay.querySelector('.modal'); ed.archiveModePage = archiveModePage;
-  const archiveModeBody = document.getElementById('archiveModeBody');
-  ed.archiveFlow = null;
-  ed.archiveAt = 0;
-  let archiveWanted = null; // a page asked for at launch, held until the photos are in
-
-  // Line by line, like a Journal entry: a long answer carries over the leaf,
-  // under its heading and label again.
-  function archiveAtoms(body) {
-    const atoms = [];
-    let heading = null;
-    [...body.children].forEach((el) => {
-      if (el.matches('.shoot-mode-section-heading')) { heading = el; return; }
-      if (!el.matches('.archive-mode-field')) { atoms.push({ el, heads: heading ? [heading] : [] }); return; }
-      const label = el.querySelector('.shoot-mode-review-label');
-      const value = el.querySelector('.archive-mode-value');
-      const heads = [heading, label].filter(Boolean);
-      const rows = Math.max(1, Math.round(value.offsetHeight / ed.LINE));
-      for (let row = 0; row < rows; row++) atoms.push({ el: value, heads, row, rows });
-    });
-    return atoms;
-  }
-
-  function drawArchivePage() {
-    ed.queueLastPlace();
-    const count = (ed.archiveFlow && ed.archiveFlow.pages.length) || 1;
-    ed.archiveAt = Math.max(0, Math.min(ed.archiveAt, count - 1));
-    if (ed.archiveFlow) ed.drawFlowPage(ed.archiveFlow, ed.archiveAt);
-    document.getElementById('archiveModeFoot').textContent = `${ed.archiveAt + 1} / ${count}`;
-    document.getElementById('archiveModePrev').disabled = ed.archiveAt <= 0;
-    document.getElementById('archiveModeNext').disabled = ed.archiveAt >= count - 1;
-  }
-
-  function breakArchivePages() {
-    if (archiveModeOverlay.hidden) return;
-    const scrolled = archiveModePage.scrollTop;
-    ed.archiveFlow = ed.buildFlow(archiveModeBody, archiveAtoms);
-    if (archiveWanted !== null) ed.archiveAt = archiveWanted;
-    drawArchivePage();
-    archiveModePage.scrollTop = scrolled;
-  }
-
-  // Its look comes from a class, so the copy can lose the id: a copy in the
-  // shoot's turning sheet comes earlier in the document than the real page.
-  const archivePageCopy = () => ed.pageCopy(archiveModeBody, copy => copy.removeAttribute('id'));
-
-  function stepArchivePage(by) {
-    const to = ed.archiveAt + by;
-    if (!ed.archiveFlow || to < 0 || to >= ed.archiveFlow.pages.length) return;
-    const turning = ed.motionOk();
-    const oldCopy = turning ? archivePageCopy() : null;
-    ed.archiveAt = to;
-    archiveModePage.scrollTop = 0;
-    drawArchivePage();
-    if (!turning) return;
-    const layer = archiveModeOverlay.querySelector('.nb-turn-layer');
-    if (by > 0) ed.playTurn(layer, '', oldCopy);
-    else ed.playTurn(layer, 'back', archivePageCopy(), oldCopy);
-  }
-  document.getElementById('archiveModePrev').addEventListener('click', () => stepArchivePage(-1));
-  document.getElementById('archiveModeNext').addEventListener('click', () => stepArchivePage(1));
-
-  (function setupArchivePageSwipe() {
-    let start = null;
-    archiveModeOverlay.addEventListener('touchstart', (e) => {
-      start = null;
-      if (e.touches.length !== 1 || e.target.closest('.nb-shoot-bar, .nb-page-num')) return;
-      const selection = window.getSelection();
-      if (selection && !selection.isCollapsed) return;
-      start = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-    }, { passive: true });
-    archiveModeOverlay.addEventListener('touchcancel', () => { start = null; }, { passive: true });
-    archiveModeOverlay.addEventListener('touchend', (e) => {
-      if (!start) return;
-      const dx = e.changedTouches[0].clientX - start.x;
-      const dy = e.changedTouches[0].clientY - start.y;
-      start = null;
-      if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
-      stepArchivePage(dx < 0 ? 1 : -1);
-    }, { passive: true });
-  })();
-
-  function openArchiveMode(shootId, at = 0) {
-    if (!ed.shootModalOverlay.hidden) ed.closeShootModal();
-    const shoot = ed.state.shoots.find(s => s.id === shootId);
-    if (!shoot) return;
-    ed.archiveModeShootId = shootId;
-    archiveWanted = at > 0 && !ed.isVideoShoot(shoot) ? at : null;
-    document.getElementById('archiveModeTitle').textContent = ed.shootDisplayName(shoot);
-    renderArchiveModeBody(shoot);
-    archiveModeOverlay.hidden = false;
-    ed.archiveAt = at > 0 ? at : 0;
-    archiveModePage.scrollTop = 0;
-    breakArchivePages();
-  }
-
-  function exitArchiveMode() {
-    ed.archiveModeShootId = null;
-    archiveWanted = null;
-    ed.queueLastPlace();
-    ed.archiveFlow = null;
-    ed.clearTurn(archiveModeOverlay.querySelector('.nb-turn-layer'));
-    archiveModeOverlay.hidden = true;
-  }
-
-  document.getElementById('archiveModeExitBtn').addEventListener('click', exitArchiveMode);
-
-  // "Shoot details" swaps to the full edit view for the same shoot — the
-  // mirror image of Archive mode's own button on that page (see
-  // updateEnterShootModeBtnVisibility), so the two stay switchable back and
-  // forth without ever landing on the main tab underneath.
-  document.getElementById('archiveModeShootDetailsBtn').addEventListener('click', () => {
-    const shootId = ed.archiveModeShootId;
-    const oldCopy = ed.motionOk() ? archivePageCopy() : null;
-    exitArchiveMode();
-    if (!shootId) return;
-    if (ed.currentScreen() !== 'archive') document.querySelector('.tab[data-view="archive"]').click();
-    ed.openShootModal(shootId);
-    if (oldCopy) ed.playTurn(ed.shootModalOverlay.querySelector('.nb-turn-layer'), '', oldCopy);
-  });
-
-  document.getElementById('enterArchiveModeBtn').addEventListener('click', () => {
-    if (!ed.currentShootId) return;
-    const oldCopy = ed.motionOk() ? ed.shootPageCopy() : null;
-    openArchiveMode(ed.currentShootId);
-    if (oldCopy && !archiveModeOverlay.hidden) ed.playTurn(archiveModeOverlay.querySelector('.nb-turn-layer'), '', oldCopy);
   });
 };
 ;
@@ -21660,6 +22552,7 @@ window.EyeParts.addShootModeWildCard = function addShootModeWildCard(ed) {
   }
 
   document.getElementById('shootModeWildCardBtn').addEventListener('click', showWildCard);
+  document.getElementById('shootModeWildCardBarBtn').addEventListener('click', showWildCard);
   // "Another" draws the next card in place, from the same deck.
   document.getElementById('shootModeWildCardAnotherBtn').addEventListener('click', showWildCard);
   document.getElementById('shootModeWildCardCloseBtn').addEventListener('click', closeWildCard);
@@ -21681,11 +22574,13 @@ window.EyeParts.addShootModeWildCard = function addShootModeWildCard(ed) {
 ;
 
 // ---- pages/notices/shoot-day.js ----
-// On the day: picking Shoot mode up again, the prompt to start it, and the day-after check-in.
+// On the day: picking Shoot mode up again when the app opens mid-shoot.
+// (Starting it, and asking about a shoot whose day has gone by, are on the
+// Overview's Today card: pages/overview/today-card.js.)
 // (Loaded before app.js, which runs it in its turn.)
 window.EyeParts = window.EyeParts || {};
 window.EyeParts.addNoticesShootDay = function addNoticesShootDay(ed) {
-  Object.assign(ed, { resumeShootModeIfActive, maybeShowShootModePrompt, checkDayAfterPrompt });
+  Object.assign(ed, { resumeShootModeIfActive });
   function resumeShootModeIfActive() {
     const id = ed.getShootModeShootId();
     if (!id) return false;
@@ -21702,123 +22597,6 @@ window.EyeParts.addNoticesShootDay = function addNoticesShootDay(ed) {
     }
     return ed.openShootMode(id);
   }
-
-  document.getElementById('shootModeStartBtn').addEventListener('click', () => {
-    const id = document.getElementById('shootModePromptOverlay').dataset.shootId;
-    document.getElementById('shootModePromptOverlay').hidden = true;
-    if (id) ed.openShootMode(id);
-  });
-
-  document.getElementById('shootModeSkipBtn').addEventListener('click', () => {
-    document.getElementById('shootModePromptOverlay').hidden = true;
-    // Answers the obvious follow-up — "so where did that go?" — once, rather
-    // than re-asking on every shoot day forever.
-    ed.showTabIntro('shootmode:where');
-  });
-
-  function maybeShowShootModePrompt() {
-    if (!ed.shootModeOverlay.hidden) return;
-    // Not before 5am: a shoot dated today isn't "today" yet at 1am, so this
-    // uses the same 5am-rollover day as the other once-a-day prompts. A
-    // late-night open the evening before, or a 2am open on the day itself,
-    // stays quiet until the day really starts.
-    const today = ed.effectiveReportDateStr();
-    let asked;
-    try { asked = localStorage.getItem(ed.SHOOT_MODE_ASKED_KEY); } catch (e) { asked = null; }
-    if (asked === today) return;
-
-    const shoot = ed.state.shoots.find(x => !x.archived && !ed.POST_CAPTURE_STATUSES.includes(x.status) && x.status !== 'rescheduled' && x.status !== 'canceled' && x.date === today);
-    if (!shoot) return;
-    try { localStorage.setItem(ed.SHOOT_MODE_ASKED_KEY, today); } catch (e) { /* ignore */ }
-
-    const overlay = document.getElementById('shootModePromptOverlay');
-    overlay.dataset.shootId = shoot.id;
-    document.getElementById('shootModePromptText').textContent =
-      `you're shooting ${ed.shootDisplayName(shoot)} today. Shoot mode strips the app back to just your shot list and your ${ed.moodboardTerm(shoot.category).toLowerCase()}, so you can tick shots off as you go without digging through the planner. It stays on until you end it.`;
-    overlay.hidden = false;
-  }
-
-  // The next-day check-in answers itself: a row per shoot, each with its two
-  // likely answers as buttons — "Postponed" and "Shot it" (Captured) — that
-  // update that shoot on the spot through the usual status path
-  // (applyStatusChange), and then show what it was set to. The reflection
-  // and deadline prompts stay out of it (one per row would stack over the
-  // list); the daily report's reflection reminder and the rows' "Pending:
-  // Reflection" pick a shot shoot up from there. The button under the list
-  // closes it whenever: "Not yet" while any row's still unanswered (those
-  // are asked again the next day), "Done" once they all are.
-  function checkDayAfterPrompt() {
-    const today = ed.effectiveReportDateStr();
-    let lastShown;
-    try { lastShown = localStorage.getItem(ed.DAY_AFTER_PROMPT_KEY); } catch (e) { lastShown = null; }
-    if (lastShown === today) return;
-
-    // Any shoot whose date has passed and hasn't been marked post-capture
-    // yet — not just ones from exactly yesterday, so skipping a day (or
-    // several) of opening the app doesn't silently drop the check-in for
-    // good. It still only asks once a day (the lastShown guard above), so
-    // whichever day you next open the app is the day it catches up.
-    // Postponed/canceled shoots keep their original date now, but already
-    // have their answer; a new date one's been given since is asked about
-    // like any other once it's passed (see isOriginalPlanDate).
-    const pendingShoots = ed.state.shoots.filter(s => !s.archived && !ed.POST_CAPTURE_STATUSES.includes(s.status) && !ed.isOriginalPlanDate(s) && s.date && s.date < today);
-    if (!pendingShoots.length) return;
-
-    try { localStorage.setItem(ed.DAY_AFTER_PROMPT_KEY, today); } catch (e) { /* ignore */ }
-
-    // Oldest first, each named with its date — and its day number on a
-    // multi-day project, whose days all share one name — so rows that would
-    // otherwise read the same can be told apart. Written once, here: an
-    // answer never rewrites a row's name (a day set to Postponed stops
-    // counting as a project day, which would renumber the others).
-    pendingShoots.sort((a, b) => ed.dateTimeSortKey(a).localeCompare(ed.dateTimeSortKey(b)));
-    const rowLabel = s => {
-      const info = ed.projectDayInfo(s);
-      return `${ed.shootDisplayName(s)} · ${ed.prettyDateShort(s.date)}${info ? ` · Day ${info.day}` : ''}`;
-    };
-    const plural = pendingShoots.length > 1;
-    document.getElementById('dayAfterPromptText').textContent = `Did ${plural ? 'these shoots' : 'this shoot'} happen?`;
-    document.getElementById('dayAfterList').innerHTML = pendingShoots.map(s => `
-      <div class="day-after-row" data-shoot-id="${ed.escapeHtml(s.id)}">
-        <span class="day-after-name">${ed.escapeHtml(rowLabel(s))}</span>
-        <div class="modal-actions fit-pair">
-          <button type="button" class="secondary" data-status="rescheduled">${ed.escapeHtml(ed.STATUS_LABELS.rescheduled)}</button>
-          <button type="button" class="primary" data-status="captured">Shot it</button>
-        </div>
-        <span class="day-after-result" hidden></span>
-      </div>
-    `).join('');
-    updateDayAfterCloseBtn();
-    document.getElementById('dayAfterPromptOverlay').hidden = false;
-    document.querySelectorAll('#dayAfterList .modal-actions').forEach(ed.fitButtonPair);
-  }
-
-  function updateDayAfterCloseBtn() {
-    const allAnswered = [...document.querySelectorAll('#dayAfterList .day-after-result')].every(el => !el.hidden);
-    const btn = document.getElementById('dayAfterOkBtn');
-    btn.textContent = allAnswered ? 'Done' : 'Not yet';
-    btn.className = allAnswered ? 'primary' : 'secondary';
-  }
-
-  document.getElementById('dayAfterList').addEventListener('click', (e) => {
-    const btn = e.target.closest('button[data-status]');
-    if (!btn) return;
-    const row = btn.closest('.day-after-row');
-    const status = btn.dataset.status;
-    if (ed.applyStatusChange(row.dataset.shootId, status, { followUps: false }) === null) return;
-    row.querySelector('.modal-actions').hidden = true;
-    const result = row.querySelector('.day-after-result');
-    result.textContent = `Status: ${ed.STATUS_LABELS[status]}`;
-    result.hidden = false;
-    updateDayAfterCloseBtn();
-  });
-
-  document.getElementById('dayAfterOkBtn').addEventListener('click', () => {
-    document.getElementById('dayAfterPromptOverlay').hidden = true;
-    // On a Monday the check-in holds back last week's brief, which then
-    // counts a weekend shoot just answered "Shot it".
-    ed.maybeShowMondayBrief();
-  });
 };
 ;
 
@@ -21840,7 +22618,6 @@ window.EyeParts.addNoticesDailyReport = function addNoticesDailyReport(ed) {
   // reflection asked again every 3 days, the weekly "How's editing going?",
   // delivered shoots missing final images, team and mood board nudges for
   // every shoot, and the stat of the day.
-  const DAILY_REPORT_SHOWN_KEY = 'dailies_daily_report_shown_v1'; ed.DAILY_REPORT_SHOWN_KEY = DAILY_REPORT_SHOWN_KEY;
   const DAILY_REPORT_ALL_KEY = 'dailies_daily_report_everything_v1';
   function dailyReportEverything() {
     try { return localStorage.getItem(DAILY_REPORT_ALL_KEY) === '1'; } catch (e) { return false; }
@@ -22143,7 +22920,7 @@ window.EyeParts.addNoticesFunFacts = function addNoticesFunFacts(ed) {
 // (Loaded before app.js, which runs it in its turn.)
 window.EyeParts = window.EyeParts || {};
 window.EyeParts.addNoticesDailyReportShow = function addNoticesDailyReportShow(ed) {
-  Object.assign(ed, { checkDailyReportPrompt, openNotificationsBell });
+  Object.assign(ed, { openNotificationsBell });
   // A general nudge about outstanding pending items — separate from the
   // scheduled, once-per-shoot items in computeDailyReportItems() above.
   // Recomputed fresh every time the report shows (like the fun fact), so it
@@ -22321,8 +23098,8 @@ window.EyeParts.addNoticesDailyReportShow = function addNoticesDailyReportShow(e
       list.appendChild(row);
     }
 
-    // Only reachable via the on-demand bell — the automatic popup never
-    // calls this when everything's empty (see checkDailyReportPrompt).
+    // It only opens when asked for (the bell, Full report), so it always
+    // says something.
     if (!items.length && !nudge && !fact) {
       const row = document.createElement('div');
       row.className = 'daily-report-item daily-report-fact';
@@ -22333,88 +23110,40 @@ window.EyeParts.addNoticesDailyReportShow = function addNoticesDailyReportShow(e
     document.getElementById('dailyReportOverlay').hidden = false;
   }
 
-  // Distinguishes the once-a-day automatic popup from an explicit bell tap, so
-  // the follow-up "here's where to find this again" hint only fires for the
-  // former (see the close handler).
-  let dailyReportWasAutomatic = false;
-
-  function checkDailyReportPrompt() {
-    const today = ed.effectiveReportDateStr();
-    let lastShown;
-    try { lastShown = localStorage.getItem(ed.DAILY_REPORT_SHOWN_KEY); } catch (e) { lastShown = null; }
-    if (lastShown === today) return;
-
-    getTodaysDailyReportContent().then(content => {
-      // Always show once a day — if nothing is pending, it's just the fact.
-      // Only truly skip if there's none of the three (a brand-new, empty app).
-      if (!content.items.length && !content.nudge && !content.fact) return;
-      try { localStorage.setItem(ed.DAILY_REPORT_SHOWN_KEY, today); } catch (e) { /* ignore */ }
-      dailyReportWasAutomatic = true;
-      renderDailyReportOverlay(content);
-    });
-  }
-
-  // Notifications bell — same content as the Daily report, shown on demand
-  // instead of gated to once a day. Unlike the automatic popup, this always
-  // shows something (a "nothing to report" line if today's report is
-  // genuinely empty), since it's an explicit tap rather than a background check.
+  // The bell and the Today card's Full report: the daily report, shown when
+  // asked for (it used to open once a day on its own; the Today card took
+  // that over). It always shows something (a "nothing to report" line if
+  // today's report is genuinely empty).
   function openNotificationsBell() {
-    dailyReportWasAutomatic = false;
     getTodaysDailyReportContent().then(renderDailyReportOverlay);
   }
 
   document.getElementById('dailyReportCloseBtn').addEventListener('click', () => {
     document.getElementById('dailyReportOverlay').hidden = true;
-    // Only after the report showed up on its own. Pointing out the bell to
-    // someone who just tapped the bell would be telling them what they know.
-    if (dailyReportWasAutomatic) ed.showTabIntro('report:bell');
   });
 };
 ;
 
 // ---- pages/notices/monday-brief.js ----
-// The Monday brief (last week, once a week on open).
+// The Monday brief (last week, looked back on, once a week), and the app
+// starting up: the photos read in, the page shown, and what opens first.
 // (Loaded before app.js, which runs it in its turn.)
 window.EyeParts = window.EyeParts || {};
 window.EyeParts.addNoticesMondayBrief = function addNoticesMondayBrief(ed) {
-  Object.assign(ed, { runOwedLaunchPopups, maybeShowMondayBrief, leaveMondayBrief, launchPopups });
-  // ---------- Monday brief (last week, once a week on open) ----------
-  // The first time the app's opened on a Monday — from 5am, the same day
-  // boundary as the daily report (effectiveReportDateStr) — a look back at
-  // last week to take into the new one: the week laid out like a page of the
-  // weekly log (its shoots and the lessons learned from each), and a nudge
-  // for any shoot still without a reflection. No counts (11-12): only the
-  // lessons go into the new week. "Last week" is Monday
-  // to Sunday, the seven days up to yesterday: the same week as the weekly
-  // log's (see daysIntoWeek).
-  // It's the last launch popup before the daily report, which follows it
-  // once it's closed, so a Monday still gets both. It's checked when the app
-  // comes back from the background too (a home-screen app is rarely
-  // launched fresh), but only with nothing else on screen.
+  Object.assign(ed, { mondayBriefDue, maybeShowMondayBrief, leaveMondayBrief, launchPopups });
+  // ---------- Monday brief (last week, once a week) ----------
+  // On a Monday — from 5am, the same day boundary as the daily report
+  // (effectiveReportDateStr) — a look back at last week to take into the new
+  // one: the week laid out like a page of the weekly log (its shoots and the
+  // lessons learned from each), and a nudge for any shoot still without a
+  // reflection. No counts (11-12): only the lessons go into the new week.
+  // "Last week" is Monday to Sunday, the seven days up to yesterday: the same
+  // week as the weekly log's (see daysIntoWeek). It no longer opens on its
+  // own: the Today card offers it until it's been read.
   const MONDAY_BRIEF_SHOWN_KEY = 'dailies_monday_brief_shown_v1';
   // A brief on its way (it shows on the next tick, see maybeShowMondayBrief),
-  // so a second check meanwhile doesn't start another.
+  // so a second tap meanwhile doesn't start another.
   let mondayBriefPending = false;
-  // The end of the launch line-up (this brief, then the daily report) when
-  // it couldn't show: something else opened while the brief was on its way,
-  // or the brief was left for a shoot. It runs once nothing's open (see
-  // syncPopupScrollLock) rather than waiting for the next launch.
-  let launchTailOwed = false;
-
-  function runOwedLaunchPopups() {
-    if (!launchTailOwed) return;
-    launchTailOwed = false;
-    // After the tap that cleared the screen has finished, in case it opens
-    // something of its own (a tab intro, say).
-    setTimeout(() => {
-      if (document.documentElement.classList.contains('update-reloading')) return;
-      if (ed.anyPopupOpen()) { launchTailOwed = true; return; }
-      // The check-in first, as at launch: its OK brings the brief.
-      ed.checkDayAfterPrompt();
-      if (!document.getElementById('dayAfterPromptOverlay').hidden) return;
-      if (!maybeShowMondayBrief()) ed.checkDailyReportPrompt();
-    }, 0);
-  }
 
   // Today's date when it's a Monday whose brief hasn't shown yet, else null.
   function mondayBriefWaiting() {
@@ -22447,10 +23176,9 @@ window.EyeParts.addNoticesMondayBrief = function addNoticesMondayBrief(ed) {
     return { today, label: ed.weekRangeLabel(start, end), week };
   }
 
-  // Shows this Monday's brief if one's due. True when it's on its way, so
-  // the launch leaves the daily report for after it. It shows on the next
-  // tick, after the rest of the launch: an entry being written when the app
-  // went away (restoreOpenJournalEntry) opens first, and the brief waits.
+  // Shows this Monday's brief if one's due (the Today card's line). True when
+  // it's on its way. It shows on the next tick, once the tap that asked for it
+  // is done.
   function maybeShowMondayBrief() {
     if (mondayBriefPending) return true;
     if (document.documentElement.classList.contains('update-reloading')) return false;
@@ -22461,11 +23189,13 @@ window.EyeParts.addNoticesMondayBrief = function addNoticesMondayBrief(ed) {
       mondayBriefPending = false;
       // A page an update's about to replace never shows it.
       if (document.documentElement.classList.contains('update-reloading')) return;
-      // Something opened meanwhile (an entry being restored, a shoot from
-      // the list) keeps the screen; the brief waits until it's closed.
-      if (ed.anyPopupOpen()) { launchTailOwed = true; return; }
+      // Something opened meanwhile keeps the screen; the line stays on the
+      // Today card for later.
+      if (ed.anyPopupOpen()) return;
       try { localStorage.setItem(MONDAY_BRIEF_SHOWN_KEY, brief.today); } catch (e) { /* ignore */ }
       renderMondayBrief(brief);
+      // Read now, so its line leaves the Today card.
+      ed.renderTodayCard();
     });
     return true;
   }
@@ -22474,16 +23204,21 @@ window.EyeParts.addNoticesMondayBrief = function addNoticesMondayBrief(ed) {
     document.getElementById('mondayBriefTitle').textContent = label;
     const body = document.getElementById('mondayBriefBody');
     body.innerHTML = '';
-    // Alternating bars, as in Archive mode.
+    // Alternating bars.
     let headingCount = 0;
-    const sectionHeading = (text) => ed.archiveModeSectionHeading(text, headingCount++ % 2 ? 'heading-navy' : 'heading-yellow');
+    const sectionHeading = (text) => {
+      const h3 = document.createElement('h3');
+      h3.className = `shoot-mode-section-heading ${headingCount++ % 2 ? 'heading-navy' : 'heading-yellow'}`;
+      h3.textContent = text;
+      return h3;
+    };
     const shoots = week ? week.shoots : [];
 
     if (week) {
       body.appendChild(sectionHeading('Last week'));
       const card = document.createElement('div');
       card.className = 'card log-card monday-brief-log';
-      card.innerHTML = ed.logWeekPaperHtml(week, 'Shoots', 'No takeaways logged last week.');
+      card.innerHTML = ed.logShootRowsHtml(week);
       ed.wireLogShootRefs(card);
       body.appendChild(card);
     }
@@ -22526,23 +23261,14 @@ window.EyeParts.addNoticesMondayBrief = function addNoticesMondayBrief(ed) {
     document.getElementById('mondayBriefOverlay').hidden = false;
   }
 
-  // Left for somewhere else (a shoot, the Pending reflections list): the
-  // daily report it was holding back waits until that's closed too.
+  // Left for somewhere else (a shoot, the Pending reflections list).
   function leaveMondayBrief() {
-    const overlay = document.getElementById('mondayBriefOverlay');
-    if (overlay.hidden) return;
-    overlay.hidden = true;
-    launchTailOwed = true;
+    document.getElementById('mondayBriefOverlay').hidden = true;
   }
 
-  // OK and the X: done reading, so the daily report it held back comes next
-  // (it does nothing if that's already shown today). No backdrop dismiss,
-  // like the other launch popups.
+  // OK and the X: done reading. No backdrop dismiss, like the other notices.
   ['mondayBriefOkBtn', 'mondayBriefCloseBtn'].forEach(id => {
-    document.getElementById(id).addEventListener('click', () => {
-      document.getElementById('mondayBriefOverlay').hidden = true;
-      ed.checkDailyReportPrompt();
-    });
+    document.getElementById(id).addEventListener('click', leaveMondayBrief);
   });
 
   // Nothing used to flush pending edits when the app went away, so anything
@@ -22568,19 +23294,8 @@ window.EyeParts.addNoticesMondayBrief = function addNoticesMondayBrief(ed) {
     // brought up to date straight away rather than at its next tick.
     if (!ed.shootModeOverlay.hidden) ed.renderShootModeClock();
     // Back from the background, which is how a home-screen app mostly
-    // "opens": Monday's brief, if it hasn't shown yet and nothing else is
-    // up. Not mid-launch, where the launch popups decide. The check-in goes
-    // first, as at launch, so a weekend shoot it asks about is in the brief
-    // once it's answered (its OK brings the brief).
-    if (!document.documentElement.classList.contains('booting') && mondayBriefWaiting()) {
-      if (!ed.anyPopupOpen()) {
-        ed.checkDayAfterPrompt();
-        if (document.getElementById('dayAfterPromptOverlay').hidden) maybeShowMondayBrief();
-      } else if (!document.getElementById('bookOverlay').hidden) {
-        // Shut notebook: it comes up as soon as the book is opened.
-        launchTailOwed = true;
-      }
-    }
+    // "opens": it may be a new day, with new things for the Today card.
+    if (!document.documentElement.classList.contains('booting')) ed.renderTodayCard();
   });
   window.addEventListener('pagehide', flushPendingEdits);
   window.addEventListener('pagehide', () => ed.saveLastPlace());
@@ -22618,29 +23333,14 @@ window.EyeParts.addNoticesMondayBrief = function addNoticesMondayBrief(ed) {
     // the app's up, so it's ready before you get there.
     setTimeout(() => { if (!ed.archiveSlideshowLoaded) ed.loadArchiveSlideshow(); }, 400);
   }); ed.launchShown = launchShown;
-  // Introductions first: on a genuinely first run this is the welcome step, and
-  // the rest of the launch popups defer so they don't stack on top of it.
+  // What opens first. Introductions first: on a genuinely first run this is
+  // the welcome step. Then Shoot mode, if it's still switched on (you're
+  // mid-shoot and want the working view), else the Overview's tip the first
+  // time. Nothing else opens on its own: what needs you is on the Today card.
   function launchPopups() {
     ed.maybeShowPhotographerPrompt();
     if (!document.getElementById('photographerModalOverlay').hidden) return;
-    // Shoot mode outranks every launch popup. If it's still switched on you're
-    // mid-shoot and want the working view, not a report; and on a shoot day the
-    // offer to enter it is the most time-sensitive thing the app can say, so it
-    // goes ahead of the daily report rather than queueing behind it.
-    if (!ed.resumeShootModeIfActive()) {
-      ed.maybeShowShootModePrompt();
-      if (document.getElementById('shootModePromptOverlay').hidden) {
-        ed.showTabIntro('overview');
-        if (document.getElementById('tabIntroOverlay').hidden) {
-          ed.checkDayAfterPrompt();
-          if (document.getElementById('dayAfterPromptOverlay').hidden) {
-            // On a Monday, last week's brief goes first and the daily
-            // report follows once it's closed.
-            if (!maybeShowMondayBrief()) ed.checkDailyReportPrompt();
-          }
-        }
-      }
-    }
+    if (!ed.resumeShootModeIfActive()) ed.showTabIntro('overview');
   }
   // Inside Documenting Fictions, the first visit's cards come before all of
   // these; they follow once the cards (and the tour, if taken) are done
@@ -22924,7 +23624,7 @@ window.EyeParts.addNotebook = function addNotebook(ed) {
     ed.resumePlace = resuming && !startShut && !suiteAt && !atShoot && !fromBoard && place ? place : null;
     if (startShut) notebook.show('closed');
     if (suiteAt) document.querySelector(`.tabbar .tab[data-view="${suiteAt}"]`).click();
-    if (atShoot) setTimeout(() => { if (atShoot.archived) ed.openArchiveMode(atShoot.id); else ed.openShootModal(atShoot.id); }, 120);
+    if (atShoot) setTimeout(() => ed.openShootModal(atShoot.id), 120);
     else if (fromBoard) setTimeout(() => ed.openShootFromBoard(fromBoard), 120);
     notebook.remember(startShut ? 'shut' : 'open');
     if (suite && suite.firstVisit) setTimeout(() => ed.eyeWelcome(ed.launchPopups), 400);
@@ -23323,26 +24023,19 @@ window.EyeParts.addSunMenu = function addSunMenu(ed) {
   window.EyeParts.addSunStickerCreases(ed, sun);
   window.EyeParts.addSunCoverStickers(ed, sun);
 
-    // Laid out like ref's Options sheet: the book's color, Stickers (its own
-    // part, as ref's own sheet), and where the app starts. On Stickers and
-    // Remove sticker the X goes one step back, as closing ref's sheet on top.
-    // Inside Documenting Fictions the shelf is the shut notebook, so there's no starting on it.
-    const START_CHOICES = [['last', 'Where I left off'], ['notebook', 'Notebook'], ['first', 'First page']].filter(([key]) => !window.DF_SUITE || key !== 'notebook');
+    // Laid out like Options: the book's colour, Stickers (its own part), and
+    // where the app starts (the same choices as Options, look-choices.js).
+    // On Stickers and Remove sticker the X goes one step back.
     const BACK_TO = { main: null, stickers: 'main', remove: 'stickers' };
     let paneNow = 'main';
     const PANES = {
       main: () => ['Options', `
-        <span class="opt-label">App color</span>
-        <div class="opt-colors">${ed.APP_COLORS.map(([key, name]) => `
-          <button type="button" class="opt-color" data-color="${key}" aria-pressed="${key === ed.state.presentation.color}">
-            <span class="opt-book" style="background-image:url(art/df-${key}-cover.webp)"></span>
-            <span>${name}</span>
-          </button>`).join('')}</div>
+        <span class="opt-label">Notebook color</span>
+        ${ed.colorChoicesHtml()}
         ${window.DF_SUITE ? '' : `<span class="opt-label opt-gap">Stickers</span>
         <button type="button" class="opt-wide" data-pane="stickers">Stickers</button>`}
-        <span class="opt-label opt-gap">Always start in</span>
-        <div class="opt-seg opt-seg-fit">${START_CHOICES.map(([key, name]) => `
-          <button type="button" data-start="${key}" class="${ed.state.presentation.start === key ? 'active' : ''}" aria-pressed="${ed.state.presentation.start === key}">${name}</button>`).join('')}</div>`],
+        <span class="opt-label opt-gap">Start in</span>
+        ${ed.startChoicesHtml()}`],
       stickers: () => ['Stickers', `
         <div class="opt-sticker-kinds">
           <button type="button" class="opt-sticker-kind" data-shape="circle"><span class="opt-shape is-circle"></span><span>Circle</span></button>
@@ -23381,39 +24074,15 @@ window.EyeParts.addSunMenu = function addSunMenu(ed) {
       body.scrollTop = 0;
       overlay.hidden = false;
     });
-    // Inside Documenting Fictions the shelf is the shut book, so App options
-    // opens these (the color and where it starts) itself. (The shelf's
-    // stickers aren't drawn, so they're left out in there.)
-    const lookBtn = document.getElementById('appLookBtn');
-    lookBtn.hidden = !window.DF_SUITE;
-    document.getElementById('appLookLabel').hidden = !window.DF_SUITE;
-    lookBtn.addEventListener('click', () => {
-      document.getElementById('appMenuOverlay').hidden = true;
-      showPane('main');
-      body.scrollTop = 0;
-      overlay.hidden = false;
-    });
     closeBtn.addEventListener('click', stepBack);
     overlay.addEventListener('click', (e) => { if (e.target === overlay) stepBack(); });
 
     body.addEventListener('click', (e) => {
       const hit = e.target.closest('button');
       if (!hit) return;
+      if (ed.pickLookChoice(hit, () => showPane('main'))) return;
       if (hit.dataset.pane) showPane(hit.dataset.pane);
-      else if (hit.dataset.color) {
-        ed.state.presentation.color = hit.dataset.color;
-        ed.saveState();
-        ed.applyAppColor(ed.state.presentation.color);
-        body.querySelectorAll('[data-color]').forEach(b => b.setAttribute('aria-pressed', String(b === hit)));
-      } else if (hit.dataset.start) {
-        ed.state.presentation.start = hit.dataset.start;
-        ed.state.presentation.startPicked = true;
-        ed.saveState();
-        body.querySelectorAll('[data-start]').forEach((b) => {
-          b.classList.toggle('active', b === hit);
-          b.setAttribute('aria-pressed', String(b === hit));
-        });
-      } else if (hit.dataset.shape) {
+      else if (hit.dataset.shape) {
         pendingShape = hit.dataset.shape;
         fileInput.value = '';
         fileInput.click();
@@ -24179,15 +24848,16 @@ window.EyeParts.addOffline = function addOffline(ed) {
         if (Number.isFinite(scrollY) && scrollY > 0) ed.scrollPageTo(scrollY);
         const { shoot, archive } = place;
         const kept = id => typeof id === 'string' && ed.state.shoots.some(s => s.id === id);
-        const clear = ed.shootModalOverlay.hidden && ed.archiveModeOverlay.hidden;
+        const clear = ed.shootModalOverlay.hidden;
         if (clear && shoot && kept(shoot.id)) {
           const page = shoot.page;
-          if (page && ed.SHOOT_MODAL_SECTIONS.some(sec => sec.id === page.id) && Number.isInteger(page.sub) && page.sub >= 0) {
-            ed.shootPageMemory[shoot.id] = { id: page.id, sub: page.sub };
+          if (page && (page.id === 'front' || ed.SHOOT_MODAL_SECTIONS.some(sec => sec.id === page.id)) && Number.isInteger(page.sub) && page.sub >= 0) {
+            ed.shootOpenAt = { id: page.id, sub: page.sub };
           }
           ed.openShootModal(shoot.id);
         } else if (clear && archive && kept(archive.id)) {
-          ed.openArchiveMode(archive.id, Number.isInteger(archive.at) && archive.at > 0 ? archive.at : 0);
+          // Saved before Archive mode became the shoot's own page.
+          ed.openShootModal(archive.id);
         }
       });
     }
@@ -24334,9 +25004,9 @@ window.EyeParts.addSwipeTabs = function addSwipeTabs(ed) {
 
     document.addEventListener('touchstart', (e) => {
       if (e.touches.length !== 1 || anyModalOpen()) { tracking = false; return; }
-      // The stats carousel and the image viewer already own horizontal
+      // Stats (its charts) and the image viewer already own horizontal
       // swipes for their own paging — don't hijack those.
-      if (e.target.closest('#statsCarousel') || e.target.closest('.image-viewer-stage') || e.target.closest('.tabbar') || e.target.closest('.nb-page-num')) {
+      if (e.target.closest('#view-stats') || e.target.closest('.image-viewer-stage') || e.target.closest('.tabbar') || e.target.closest('.nb-page-num')) {
         tracking = false;
         return;
       }
@@ -24384,13 +25054,6 @@ window.EyeParts.addSwipeTabs = function addSwipeTabs(ed) {
         count: () => ed.shootFlatPages().length,
         at: () => Math.max(0, ed.shootFlatPages().findIndex(p => p.id === ed.shootPageId && p.sub === ed.shootSub)),
         go: (i) => { const page = ed.shootFlatPages()[i]; if (page) ed.showShootPage(page.id, { sub: page.sub }); },
-      },
-      {
-        el: document.getElementById('archiveModeFoot'),
-        ok: () => !ed.archiveModeOverlay.hidden && !!ed.archiveFlow,
-        count: () => (ed.archiveFlow && ed.archiveFlow.pages.length) || 1,
-        at: () => ed.archiveAt,
-        go: (i) => { ed.archiveAt = i; ed.archiveModePage.scrollTop = 0; ed.drawArchivePage(); },
       },
       {
         el: document.getElementById('shootModeFoot'),
@@ -24472,19 +25135,16 @@ window.EyeParts.addSwipeTabs = function addSwipeTabs(ed) {
 ;
 
 // ---- components/navigator.js ----
-// The navigator.
+// The section bar: tapping, swiping and holding it.
 // (Loaded before app.js, which runs it in its turn.)
 window.EyeParts = window.EyeParts || {};
 window.EyeParts.addNavigator = function addNavigator(ed) {
-  // ---------- the navigator ----------
-  // One button that slides through the screens, as in Callback: the screen
-  // you're on sits in the middle as its icon, with a little triangle on each
-  // side that has another screen. Swipe along it, or tap a triangle, and the
-  // notebook turns to that screen's tab. The tab buttons stay (hidden): they
-  // still do the switching.
+  // ---------- the section bar ----------
+  // A mark and a name for each section (pages/tabs.html .tabbar). Tap one,
+  // or swipe along the bar, and the notebook turns to it with a page turn;
+  // swiping right on the first section shuts the notebook. Tapping the
+  // section you're on goes back to the top of its page.
   (function setupNavigator() {
-    const STEP = 36; // px from one icon to the next on the strip
-    const triangle = '<svg viewBox="0 0 10 12" aria-hidden="true"><path d="M2.3 1.5Q5.6 3.8 8.7 6.1 5.5 8.3 2.2 10.5 2.5 6 2.3 1.5Z" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>';
     const bar = document.querySelector('.tabbar');
     const tabs = [...bar.querySelectorAll('.tab')].map(el => ({
       el,
@@ -24492,61 +25152,42 @@ window.EyeParts.addNavigator = function addNavigator(ed) {
       name: el.textContent.trim(),
       icon: el.querySelector('.tab-icon').innerHTML,
     }));
-    const slider = document.createElement('div');
-    slider.className = 'slider';
-    slider.innerHTML = `<button type="button" class="slide-arrow is-prev">${triangle}</button>`
-      + `<button type="button" class="slide-now"><span class="slide-strip" aria-hidden="true"><span class="slide-icon slide-icon-shut">${document.getElementById('shutBookBtn').innerHTML}</span>${tabs.map(t => `<span class="slide-icon">${t.icon}</span>`).join('')}</span></button>`
-      + `<button type="button" class="slide-arrow is-next">${triangle}</button>`;
-    bar.appendChild(slider);
-    const strip = slider.querySelector('.slide-strip');
-    const now = slider.querySelector('.slide-now');
-    const prev = slider.querySelector('.is-prev');
-    const next = slider.querySelector('.is-next');
     let idx = 0;
     let arrivedAt = 0;
     let drag = null;
     let draggedAt = 0;
 
-    function stripTo(i, x = 0, moving = false) {
-      strip.classList.toggle('is-moving', moving);
-      strip.style.transform = `translateX(${(-i * STEP + x).toFixed(1)}px)`;
-    }
-    function sync(moving) {
+    function sync() {
       const found = tabs.findIndex(t => t.el.classList.contains('active'));
       if (found >= 0 && found !== idx) arrivedAt = performance.now();
       if (found >= 0) idx = found;
-      const before = tabs[idx - 1];
-      const after = tabs[idx + 1];
-      now.setAttribute('aria-label', tabs[idx].name);
-      // Before the first screen there's the shut book.
-      next.classList.toggle('is-off', !after);
-      next.disabled = !after;
-      prev.setAttribute('aria-label', before ? `Previous: ${before.name}` : 'Shut the notebook');
-      next.setAttribute('aria-label', after ? `Next: ${after.name}` : 'Nothing after this');
-      if (!drag) stripTo(idx, 0, moving);
+      tabs.forEach((t, i) => { if (i === idx) t.el.setAttribute('aria-current', 'page'); else t.el.removeAttribute('aria-current'); });
     }
     function go(by) {
+      // Before the first section there's the shut book.
       if (idx + by < 0) {
-        stripTo(idx, 0, true);
-        // A repeat of the tap that just got here isn't asking to shut the book.
+        // A repeat of the swipe that just got here isn't asking to shut the book.
         if (performance.now() - arrivedAt >= 700) document.getElementById('shutBookBtn').click();
         return;
       }
       const t = tabs[idx + by];
       if (t) ed.turnToView(t.view);
     }
-    prev.addEventListener('click', () => go(-1));
-    next.addEventListener('click', () => go(1));
-    // A tap on the icon goes back to the top of its page.
-    now.addEventListener('click', () => { if (window.scrollY > 0) window.scrollTo({ top: 0, behavior: ed.motionOk() ? 'smooth' : 'auto' }); });
+    // A tap on a mark (the finger's own: the app's jumps click the buttons
+    // themselves) turns the page to it, as a swipe does.
+    bar.addEventListener('click', (e) => {
+      const tab = e.target.closest('.tab');
+      if (!tab || !e.isTrusted) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (performance.now() - draggedAt < 350) return; // a swipe that ends on a mark isn't a tap on it
+      if (!tab.classList.contains('active')) { ed.turnToView(tab.dataset.view); return; }
+      if (window.scrollY > 0) window.scrollTo({ top: 0, behavior: ed.motionOk() ? 'smooth' : 'auto' });
+    }, true);
 
-    // A finger the width of a third of the screen moves one icon over.
+    // A finger the width of a third of the screen (120px at most), or a
+    // quick flick, turns one section along.
     const span = () => (window.innerWidth || 1) / 3;
-    function follow(dx) {
-      const has = dx > 0 || tabs[idx + 1];
-      const x = Math.max(-STEP, Math.min(STEP, (dx / span()) * STEP));
-      stripTo(idx, has ? x : x * 0.25);
-    }
     bar.addEventListener('pointerdown', (e) => {
       if (e.button || !e.isPrimary) return;
       drag = { id: e.pointerId, x0: e.clientX, y0: e.clientY, moved: false, dx: 0, v: 0, t: performance.now(), lx: e.clientX };
@@ -24566,7 +25207,6 @@ window.EyeParts.addNavigator = function addNavigator(ed) {
       drag.lx = e.clientX;
       drag.t = t;
       drag.dx = dx;
-      follow(dx);
     });
     const end = (e) => {
       if (!drag || e.pointerId !== drag.id) return;
@@ -24577,20 +25217,14 @@ window.EyeParts.addNavigator = function addNavigator(ed) {
       const by = dx < 0 ? 1 : -1;
       const flick = Math.abs(v) > 0.45 && Math.sign(v) === Math.sign(dx) && Math.abs(dx) > 24;
       if (e.type === 'pointerup' && (by < 0 || tabs[idx + by]) && (Math.abs(dx) > Math.min(span() * 0.6, 120) || flick)) go(by);
-      else stripTo(idx, 0, true);
     };
     bar.addEventListener('pointerup', end);
     bar.addEventListener('pointercancel', end);
-    // A swipe that ends on a button isn't a tap on it. On the slider only:
-    // the hidden tab buttons are clicked by the app itself straight after.
-    slider.addEventListener('click', (e) => {
-      if (performance.now() - draggedAt < 350) { e.preventDefault(); e.stopPropagation(); }
-    }, true);
 
-    // Held still for a moment, the icon swells into a row of every section,
+    // Held still for a moment, the bar swells into a row of every section,
     // the way the Mac's Dock grows under the pointer (user, 11-11). Slide
     // along it and let go on one to turn there; let go without sliding and
-    // nothing changes. The shut book isn't on it: only the arrow shuts it.
+    // nothing changes.
     const DOCK_SLOT = 46; // px from one icon to the next
     const DOCK_PAD = 10;  // the card's padding and border, each side
     const dock = document.createElement('div');
@@ -24637,14 +25271,14 @@ window.EyeParts.addNavigator = function addNavigator(ed) {
       dock.classList.add('is-open');
       try { bar.setPointerCapture(h.id); } catch (err) { /* capture is a nice-to-have */ }
     }
-    now.addEventListener('pointerdown', (e) => {
+    bar.addEventListener('pointerdown', (e) => {
       if (e.button || !e.isPrimary) return;
       if (hold) clearTimeout(hold.timer);
       const h = { id: e.pointerId, x: e.clientX, y: e.clientY };
       h.timer = setTimeout(() => { if (hold === h) openDock(h); }, 380);
       hold = h;
     });
-    now.addEventListener('contextmenu', e => e.preventDefault());
+    bar.addEventListener('contextmenu', e => e.preventDefault());
     bar.addEventListener('pointermove', (e) => {
       if (hold && e.pointerId === hold.id && Math.hypot(e.clientX - hold.x, e.clientY - hold.y) >= 8) { clearTimeout(hold.timer); hold = null; }
       if (!docked || e.pointerId !== docked.id) return;
@@ -24658,14 +25292,14 @@ window.EyeParts.addNavigator = function addNavigator(ed) {
       const { moved, at } = docked;
       docked = null;
       dock.classList.remove('is-open');
-      draggedAt = performance.now(); // the icon's own tap (back to page 1) stands down
+      draggedAt = performance.now(); // the mark's own tap stands down
       if (e.type === 'pointerup' && moved && at !== idx) ed.turnToView(tabs[at].view);
     };
     bar.addEventListener('pointerup', dockEnd);
     bar.addEventListener('pointercancel', dockEnd);
 
-    new MutationObserver(() => sync(true)).observe(document.documentElement, { attributes: true, attributeFilter: ['data-view'] });
-    sync(false);
+    new MutationObserver(sync).observe(document.documentElement, { attributes: true, attributeFilter: ['data-view'] });
+    sync();
 
     // The tabs poking out of the page's edge, one for each screen. From
     // inside a shoot, a tab closes it first (saving, the same as Back).
@@ -24676,14 +25310,39 @@ window.EyeParts.addNavigator = function addNavigator(ed) {
     document.querySelectorAll('.nb-screen-tabs-shoot').forEach(tabs => tabs.addEventListener('click', (e) => {
       const tab = e.target.closest('[data-view]');
       if (!tab) return;
-      if (!ed.archiveModeOverlay.hidden) ed.exitArchiveMode();
-      else document.getElementById('nbBarBack').click();
+      ed.shootModalOverlay.querySelector('[data-close="shoot"]').click();
       // Whatever the shoot was opened from goes too: it belongs to the old section.
       if (ed.activeStatBoxKey) ed.closeStatBoxDetail();
       ed.closeProjectPopup();
       ed.turnToView(tab.dataset.view);
     }));
   })();
+};
+;
+
+// ---- components/band.js ----
+// The band on top of every section (pages/tabs.html .band): today's date in
+// its label line, and the buttons every section's band repeats, which do
+// what Overview's do: the notebooks button (#shutBookBtn) and Options
+// (#appMenuBtn). (Loaded before app.js, which runs it in its turn.)
+window.EyeParts = window.EyeParts || {};
+window.EyeParts.addBand = function addBand(ed) {
+  const dates = [...document.querySelectorAll('.band-date')];
+  // FRI 13 NOV (the capitals are the band's): written again when the day changes.
+  let shown = '';
+  function writeDate() {
+    const text = new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }).replace(',', '');
+    if (text === shown) return;
+    shown = text;
+    dates.forEach((d) => { d.textContent = text; });
+  }
+  writeDate();
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) writeDate(); });
+  setInterval(writeDate, 60 * 1000);
+  const books = document.getElementById('shutBookBtn');
+  const options = document.getElementById('appMenuBtn');
+  document.querySelectorAll('.band-books:not(#shutBookBtn)').forEach((b) => b.addEventListener('click', () => books.click()));
+  document.querySelectorAll('.band-options').forEach((b) => b.addEventListener('click', () => options.click()));
 };
 ;
 
@@ -24695,6 +25354,8 @@ window.EyeParts.addNavigator = function addNavigator(ed) {
   Object.assign(ed, { lookTagsOn, applyLookTags });
   // Needed from the start (only functions and fixed values, so they can run first):
   window.EyeParts.addDates(ed);
+  window.EyeParts.addRowWords(ed);
+  window.EyeParts.addShootStage(ed);
   window.EyeParts.addHelpers(ed);
   // iOS Safari only computes :active styles on elements it thinks have a
   // touch listener — this no-op unlocks tap-flash feedback app-wide.
@@ -24745,8 +25406,11 @@ window.EyeParts.addNavigator = function addNavigator(ed) {
   window.EyeParts.addOverview(ed);
   window.EyeParts.addProjectsProjectPopup(ed);
   window.EyeParts.addOverviewDrawOverview(ed);
+  window.EyeParts.addOverviewTodayCard(ed);
+  window.EyeParts.addOverviewNextShoot(ed);
   window.EyeParts.addShootsShootLog(ed);
   window.EyeParts.addArchive(ed);
+  window.EyeParts.addArchiveList(ed);
   window.EyeParts.addJournal(ed);
   window.EyeParts.addJournalCards(ed);
   window.EyeParts.addJournalList(ed);
@@ -24781,6 +25445,7 @@ window.EyeParts.addNavigator = function addNavigator(ed) {
   window.EyeParts.addShootChapterPages(ed);
   window.EyeParts.addShootChapter(ed);
   window.EyeParts.addNewShootWizardSteps(ed);
+  window.EyeParts.addNewShootGuideChapters(ed);
   window.EyeParts.addNewShootWizard(ed);
   window.EyeParts.addNewShootWizardEnd(ed);
   window.EyeParts.addConceptHelperHelper(ed);
@@ -24794,6 +25459,7 @@ window.EyeParts.addNavigator = function addNavigator(ed) {
   window.EyeParts.addImageViewerTouch(ed);
   window.EyeParts.addShootFinalImages(ed);
   window.EyeParts.addShootSave(ed);
+  window.EyeParts.addShootNotSure(ed);
   window.EyeParts.addShootMultiDay(ed);
   window.EyeParts.addShootMultiDayPrompt(ed);
   window.EyeParts.addShootClose(ed);
@@ -24803,6 +25469,13 @@ window.EyeParts.addNavigator = function addNavigator(ed) {
   window.EyeParts.addShootOptionsChangeDeadline(ed);
   window.EyeParts.addShootOptionsChangeStatus(ed);
   window.EyeParts.addShootOptionsAddToProject(ed);
+  // The shoot's page in the round 2 look: front page, cards, next step, status.
+  window.EyeParts.addShootFront(ed);
+  window.EyeParts.addShootFrontCards(ed);
+  window.EyeParts.addShootStageCards(ed);
+  window.EyeParts.addShootReportCards(ed);
+  window.EyeParts.addShootNextStep(ed);
+  window.EyeParts.addShootStatusSheet(ed);
   window.EyeParts.addToast(ed);
   window.EyeParts.addConfirm(ed);
   window.EyeParts.addLoadLib(ed);
@@ -24821,24 +25494,26 @@ window.EyeParts.addNavigator = function addNavigator(ed) {
   window.EyeParts.addAppMenuFrameworks(ed);
   window.EyeParts.addAppMenuCategoryVisibility(ed);
   window.EyeParts.addModalClose(ed);
+  window.EyeParts.addAppMenuLookChoices(ed);
   window.EyeParts.addAppMenu(ed);
+  window.EyeParts.addAppMenuSavedLists(ed);
   window.EyeParts.addTour(ed);
   window.EyeParts.addAppMenuOptions(ed);
   window.EyeParts.addAppMenuDeleteAll(ed);
   window.EyeParts.addAppMenuBackup(ed);
   window.EyeParts.addAppMenuRestore(ed);
+  window.EyeParts.addStatsWords(ed);
   window.EyeParts.addStatsTab(ed);
   window.EyeParts.addStatsRegionsMap(ed);
   window.EyeParts.addStatsPages(ed);
   window.EyeParts.addRenderAll(ed);
-  window.EyeParts.addNoticesDayAfter(ed);
+  window.EyeParts.addNoticesReportDay(ed);
   window.EyeParts.addShootModeShotList(ed);
   window.EyeParts.addShootMode(ed);
   window.EyeParts.addShootModePages(ed);
   window.EyeParts.addShootModeClock(ed);
   window.EyeParts.addShootModeGoldenHour(ed);
   window.EyeParts.addShootModeLastTime(ed);
-  window.EyeParts.addArchiveMode(ed);
   window.EyeParts.addNewShootLastTimeNotes(ed);
   window.EyeParts.addShootModeQuickReview(ed);
   window.EyeParts.addShootModeWildCard(ed);
@@ -24855,5 +25530,6 @@ window.EyeParts.addNavigator = function addNavigator(ed) {
   window.EyeParts.addPullToRefresh(ed);
   window.EyeParts.addSwipeTabs(ed);
   window.EyeParts.addNavigator(ed);
+  window.EyeParts.addBand(ed);
 })();
 ;

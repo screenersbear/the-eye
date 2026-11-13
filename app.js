@@ -5,6 +5,8 @@
   Object.assign(ed, { lookTagsOn, applyLookTags });
   // Needed from the start (only functions and fixed values, so they can run first):
   window.EyeParts.addDates(ed);
+  window.EyeParts.addRowWords(ed);
+  window.EyeParts.addShootStage(ed);
   window.EyeParts.addHelpers(ed);
   // iOS Safari only computes :active styles on elements it thinks have a
   // touch listener — this no-op unlocks tap-flash feedback app-wide.
@@ -55,8 +57,11 @@
   window.EyeParts.addOverview(ed);
   window.EyeParts.addProjectsProjectPopup(ed);
   window.EyeParts.addOverviewDrawOverview(ed);
+  window.EyeParts.addOverviewTodayCard(ed);
+  window.EyeParts.addOverviewNextShoot(ed);
   window.EyeParts.addShootsShootLog(ed);
   window.EyeParts.addArchive(ed);
+  window.EyeParts.addArchiveList(ed);
   window.EyeParts.addJournal(ed);
   window.EyeParts.addJournalCards(ed);
   window.EyeParts.addJournalList(ed);
@@ -91,6 +96,7 @@
   window.EyeParts.addShootChapterPages(ed);
   window.EyeParts.addShootChapter(ed);
   window.EyeParts.addNewShootWizardSteps(ed);
+  window.EyeParts.addNewShootGuideChapters(ed);
   window.EyeParts.addNewShootWizard(ed);
   window.EyeParts.addNewShootWizardEnd(ed);
   window.EyeParts.addConceptHelperHelper(ed);
@@ -104,6 +110,7 @@
   window.EyeParts.addImageViewerTouch(ed);
   window.EyeParts.addShootFinalImages(ed);
   window.EyeParts.addShootSave(ed);
+  window.EyeParts.addShootNotSure(ed);
   window.EyeParts.addShootMultiDay(ed);
   window.EyeParts.addShootMultiDayPrompt(ed);
   window.EyeParts.addShootClose(ed);
@@ -113,6 +120,13 @@
   window.EyeParts.addShootOptionsChangeDeadline(ed);
   window.EyeParts.addShootOptionsChangeStatus(ed);
   window.EyeParts.addShootOptionsAddToProject(ed);
+  // The shoot's page in the round 2 look: front page, cards, next step, status.
+  window.EyeParts.addShootFront(ed);
+  window.EyeParts.addShootFrontCards(ed);
+  window.EyeParts.addShootStageCards(ed);
+  window.EyeParts.addShootReportCards(ed);
+  window.EyeParts.addShootNextStep(ed);
+  window.EyeParts.addShootStatusSheet(ed);
   window.EyeParts.addToast(ed);
   window.EyeParts.addConfirm(ed);
   window.EyeParts.addLoadLib(ed);
@@ -131,24 +145,26 @@
   window.EyeParts.addAppMenuFrameworks(ed);
   window.EyeParts.addAppMenuCategoryVisibility(ed);
   window.EyeParts.addModalClose(ed);
+  window.EyeParts.addAppMenuLookChoices(ed);
   window.EyeParts.addAppMenu(ed);
+  window.EyeParts.addAppMenuSavedLists(ed);
   window.EyeParts.addTour(ed);
   window.EyeParts.addAppMenuOptions(ed);
   window.EyeParts.addAppMenuDeleteAll(ed);
   window.EyeParts.addAppMenuBackup(ed);
   window.EyeParts.addAppMenuRestore(ed);
+  window.EyeParts.addStatsWords(ed);
   window.EyeParts.addStatsTab(ed);
   window.EyeParts.addStatsRegionsMap(ed);
   window.EyeParts.addStatsPages(ed);
   window.EyeParts.addRenderAll(ed);
-  window.EyeParts.addNoticesDayAfter(ed);
+  window.EyeParts.addNoticesReportDay(ed);
   window.EyeParts.addShootModeShotList(ed);
   window.EyeParts.addShootMode(ed);
   window.EyeParts.addShootModePages(ed);
   window.EyeParts.addShootModeClock(ed);
   window.EyeParts.addShootModeGoldenHour(ed);
   window.EyeParts.addShootModeLastTime(ed);
-  window.EyeParts.addArchiveMode(ed);
   window.EyeParts.addNewShootLastTimeNotes(ed);
   window.EyeParts.addShootModeQuickReview(ed);
   window.EyeParts.addShootModeWildCard(ed);
@@ -165,4 +181,5 @@
   window.EyeParts.addPullToRefresh(ed);
   window.EyeParts.addSwipeTabs(ed);
   window.EyeParts.addNavigator(ed);
+  window.EyeParts.addBand(ed);
 })();

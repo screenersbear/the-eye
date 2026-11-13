@@ -25,7 +25,6 @@ window.EyeParts.addLastPlace = function addLastPlace(ed) {
     if (!ed.lastPlaceArmed) return;
     try {
       const shootOpen = !ed.shootModalOverlay.hidden && ed.currentShootId;
-      const archiveOpen = !ed.archiveModeOverlay.hidden && ed.archiveModeShootId;
       localStorage.setItem(LAST_PLACE_KEY, JSON.stringify({
         book: document.getElementById('bookOverlay').hidden ? 'open' : 'shut',
         view: ed.currentScreen(),
@@ -34,8 +33,7 @@ window.EyeParts.addLastPlace = function addLastPlace(ed) {
         archiveFilter: ed.archiveFilter,
         journalFilter: ed.journalFilter,
         statsYearFilter: ed.statsYearFilter,
-        shoot: shootOpen ? { id: ed.currentShootId, page: { id: ed.shootPageId, sub: ed.shootSub } } : null,
-        archive: archiveOpen ? { id: ed.archiveModeShootId, at: ed.archiveAt } : null,
+        shoot: shootOpen ? { id: ed.currentShootId, page: ed.shootOnFront ? { id: 'front', sub: 0 } : { id: ed.shootPageId, sub: ed.shootSub } } : null,
         shootMode: !ed.shootModeOverlay.hidden && ed.getShootModeShootId() ? { id: ed.getShootModeShootId(), at: ed.shootModeAt } : null,
       }));
     } catch (e) { /* storage unavailable: it just opens where the sun menu's fallback says */ }
