@@ -96,7 +96,7 @@
   "fonts/klee-one-latin.woff": "01bf56463a14928517b79628e2a3925fd0444940643c21b0f14d12f635ee8b6c",
   "icon-180.png": "2efd3364217718b158091ab844afaedf7078a919ec53aebf8df0b42787783b5c",
   "icon-512.png": "52df2e8d4b7632453af5326bf6ea1b8c11fd877f12cd51e52f62923b5ebe27f6",
-  "index.html": "0a0f92eb52cdd3d2ca7741e592532a7cdb1b10758a2b0ea765ca443d55081124",
+  "index.html": "9797187d51194f79858b0e3ece9abca018a4ce99b79d9c14b27d35eb3bb49300",
   "lib/jspdf.umd.min.js": "98ccf17aa10c20bb1301762618fcc9b6ab3a4e7f26b6071d64d0b41154df3875",
   "lib/pdf.min.js": "978fd1b2d134a98e98966186a97777bebf87d8e770dadab1ece3687e21a5aa6c",
   "lib/pdf.worker.min.js": "38cde5311957b86bc3669f93e7d2566de333a90055ed6635bef60d9bf00e96f2",
@@ -357,7 +357,7 @@
   "styles/talents.css": "4eff235b804c0cad3e8bdc19d95d9b1f751b303ef7749d137da3333be2ff7898",
   "styles/toast.css": "a9bd2f736be7cd5cdfaedf95331d3c359c713fc51d450f7469fbe6c65fa5f22c",
   "styles/today-card.css": "a6a1ad1f7af27cdcde4f1c7a6505c9f6159d6eb7f044131e6a3a7b3cb13ecf22",
-  "sw.js": "dfa7341d3fbe2c9e726c18439f6730ca12c11397dad434f1ab4d6a7c4b0b7518",
+  "sw.js": "9bcaac9900f71525f14774c80c677a1c7783280b61180b633796d63d16b29055",
   "world-map.svg": "6d177e23300d6f6e550f9551a2c36b5d637de7bbef89833f35a138d67a9083a7"
  },
  "keep": [
@@ -375,6 +375,6 @@
  ],
  "name": "The Eye",
  "notebook": "the-eye",
- "suite": "4034878 + changes not committed",
+ "suite": "d9cdcca + changes not committed",
  "suite_folder": "../Documenting Fictions"
 }
