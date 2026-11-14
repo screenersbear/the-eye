@@ -15,7 +15,7 @@
   "art/df-ocean-cover.webp": "b0c3fd57eaf1f00c1e4114c4111c5adcfd40f8db8fdcd40a92af4572a42cc65a",
   "art/df-orange-block.webp": "e75097e8e02c84499591ac58c21359f09e592a2191492ccea1d1d6c96390e892",
   "art/df-orange-cover.webp": "ca9bf4ca81c6135ac7df62c602c8ac7d4e8a5f513fccf17910594606f13fde5a",
-  "built/app.css": "694f4cea856e589fa7ee533c5714691b1738fe36f48f37787d0092a80fa39027",
+  "built/app.css": "c19af8b8de42cb75a333b33f9f8d06f1185c88630c73254eb4e00c03c0f6607b",
   "built/app.js": "40504dcad3aa112494a6a58381473e5a9f68e072a12c5a624b1b3fb5acd0879c",
   "built/markup.js": "5e349356eb5ed15152f47b257c6dcde41f3928a2174d0f0e5fef006bc2aa007c",
   "built/shared-data.js": "022998949d22b685c35a6d2efdabc725b0330db6288cbe016d234f52b77ab0ce",
@@ -283,7 +283,7 @@
   "styles/archive-list.css": "01ed2bdb732ffef757f38188f089e19a708ebc930da5f78c8e3dea206562dd3c",
   "styles/archive-slideshow.css": "b80a2280c4aa3e50d2c325715686fe2f6fb5ae26c22f1ff482986655d6932635",
   "styles/band-colors.css": "31ce4622ef2d2a727f9de40b42d8930220ed77fa3a5bb810be3a3585c0085709",
-  "styles/base.css": "7b3cf67b89abf24c1531633a15ff73bb9f90022fe641d325264732fa7f7ee7e2",
+  "styles/base.css": "7a70b7efcf7e7fa78d1b77bee232e300f4494d3ce16089f0087d5a7328802312",
   "styles/buttons.css": "7f182f3bd66971db07729088b60919c3f40e52ccc25e3c950ab82da359f5505a",
   "styles/card-lists.css": "561632184de924516d4deaef178c31af4127a21f6de076e1dce02b97c6da19e5",
   "styles/concept-helper.css": "12e7899b540681fa022079280077aac1b9464f972f4918c91f2265dcc1991564",
@@ -339,7 +339,7 @@
   "styles/shoot-options.css": "9af3641624a6ca3e2b2eda437acc8ef57ea4599418f470606eca82366fdcb064",
   "styles/shoot-report.css": "bcc41abc795e2b17dcb84827cdce250d743937afba896c2bd8c58d4769b9c474",
   "styles/shoot-row-compact.css": "50d568118e1e39a607df9441adfedbdbc6e628b043bd5d2d63341f59815a32f8",
-  "styles/shoot-rows.css": "5d104a2a23bf564edc859751019545d248a14a661d2e9d2b09a6e9a9079396ee",
+  "styles/shoot-rows.css": "69b97fb9e594038d921a68eae21e7803997d96801d2983e6e4e25e4237f7f92a",
   "styles/shoot-thumbnail.css": "b05021b15753318410414153f3e484296105637aa990971a455acfb0cded3bf8",
   "styles/shot-list.css": "4e66c7bea0648af6b2de1fe3623b79a6ec170417eaac6e69c5c3c24a709c53c9",
   "styles/social-handles.css": "c376d1af29a36ba793bf099c50fd576192be1d3070cac6bc7b9fa2775001cb67",
@@ -351,7 +351,7 @@
   "styles/talents.css": "4eff235b804c0cad3e8bdc19d95d9b1f751b303ef7749d137da3333be2ff7898",
   "styles/toast.css": "a9bd2f736be7cd5cdfaedf95331d3c359c713fc51d450f7469fbe6c65fa5f22c",
   "styles/today-card.css": "fad19ac3be63ec9acd340241687bcc1468b8f86bbe06f7bc1f1e8d22aae744f5",
-  "sw.js": "b03912d89c4e638881739f51986530edfa30625bafce6749df56b1d983ab808d",
+  "sw.js": "22e296e9f9a2b8db60f1723c9bdb25bd7c9e0105fe98019501e237c6c98cb9fe",
   "world-map.svg": "6d177e23300d6f6e550f9551a2c36b5d637de7bbef89833f35a138d67a9083a7"
  },
  "keep": [
@@ -369,6 +369,6 @@
  ],
  "name": "The Eye",
  "notebook": "the-eye",
- "suite": "3347311 + changes not committed",
+ "suite": "77b4abc + changes not committed",
  "suite_folder": "../Documenting Fictions"
 }
