@@ -15,10 +15,10 @@
   "art/df-ocean-cover.webp": "b0c3fd57eaf1f00c1e4114c4111c5adcfd40f8db8fdcd40a92af4572a42cc65a",
   "art/df-orange-block.webp": "e75097e8e02c84499591ac58c21359f09e592a2191492ccea1d1d6c96390e892",
   "art/df-orange-cover.webp": "ca9bf4ca81c6135ac7df62c602c8ac7d4e8a5f513fccf17910594606f13fde5a",
-  "built/app.css": "545143fc49067e393266b7068486654b3467ca7589f8e8ecc1858b6ced2eae5e",
-  "built/app.js": "5594896b08a9bbb21517abaf472cf089f18e4528cc074ff5107cb9dac5a2745e",
+  "built/app.css": "14f17176dd54e487f5af0b99ac7216033e953b795ba1040daaea2cc997e0847a",
+  "built/app.js": "42025dd8d728ee7b962f4abda3d89e88e152f840acefd28aa5fd2aae6d35c847",
   "built/markup.js": "2f266bd99c56d2db7c00db8f212268864b5e02d14b9bfbd8fb11e566f2b12717",
-  "built/shared-data.js": "2e10766c2b77278627a416a724101b70125302b65693422bb197bf843e42cb7f",
+  "built/shared-data.js": "5ede2f6a26686f4c4d8c3f1862acb2a876c170099e8093186113de48ad329862",
   "components/band.js": "0adb8d182ee287e0091b6119666720e2ccc0ddc49e5785da0c366682096fbedd",
   "components/bottom-bar.js": "113677df0243347af04bfeb6b6eb8384cc033eaa0ff9e7b05d785d3fa430ef7c",
   "components/categories.js": "19b9632d995e64f1d6fa803ff5886efcd6a255dafc9823b027436e476eaf3b02",
@@ -88,7 +88,7 @@
   "data/shared/zip-backup.js": "2e87befe7cef8538d36a4a70c8765c50ce05b1d197e385f1c3bdfc02e8dd2723",
   "data/shared/zip-format.js": "9cba2efaab2257757a48f4dcec4c784c5dcbb0d2fd25064c0fb20dc9d6c18fd9",
   "data/shared/zip-restore.js": "01dbe79a4fd1edf48e618402bb642e555f82e2ef97b8a631a362d795ec5a87d6",
-  "files.txt": "882d71fc983d3626f0e1ba77095fce7c43603d5db100fb1ee491cda255e71462",
+  "files.txt": "1cae1a31d09a201436e85e382eda9bacd446a4196972387bb743ae62f69f2bc1",
   "fonts/ArchivoBlack-OFL.txt": "3173acd82f8c6159b5b1037b539fcbd4edff68e65c2ea8b9412b5a5ca97b08ff",
   "fonts/Figtree-OFL.txt": "140d37233e7f3ce7313798befa9600893bcceaf41a55fa0fa5ad52f7f657a268",
   "fonts/KaiseiDecol-OFL.txt": "6c5445d4febbf6d84025b874a85c51e7e4bfa7495279eccdb4c317a6de857b46",
@@ -363,7 +363,7 @@
   "styles/talents.css": "4eff235b804c0cad3e8bdc19d95d9b1f751b303ef7749d137da3333be2ff7898",
   "styles/toast.css": "a9bd2f736be7cd5cdfaedf95331d3c359c713fc51d450f7469fbe6c65fa5f22c",
   "styles/today-card.css": "55db188d56d372d789b54c00c34b47533a625106404d7e41656eebdaf87b7039",
-  "sw.js": "acda7f762364342545a636402091cbbe82e6c39ad77eb51ca6df2760a057b848",
+  "sw.js": "0198e47aa8f83b7a5fa0cc5463b2a8890d0611a7eac5c7187f3caf1524b8b2b3",
   "world-map.svg": "6d177e23300d6f6e550f9551a2c36b5d637de7bbef89833f35a138d67a9083a7"
  },
  "keep": [
@@ -381,6 +381,6 @@
  ],
  "name": "The Eye",
  "notebook": "the-eye",
- "suite": "7c33832 + changes not committed",
+ "suite": "2dc8d90 + changes not committed",
  "suite_folder": "../Documenting Fictions"
 }
