@@ -51,5 +51,7 @@ window.EyeParts.addSave = function addSave(ed) {
       noteStorageFull(err);
     }
     ed.freezeShotBoardsSoon(); // a shoot just shot: its boards from Ref stop changing
+    if (ed.tellShelf) ed.tellShelf(); // what's waiting, for the floating ! on the shelf
+    if (ed.tellPeople) ed.tellPeople(); // its shoots and who was on them, for the person page
   }
 };

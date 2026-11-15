@@ -21,6 +21,10 @@ built/shared-data.js smaller
   data/shared/zip-restore.js
   data/shared/links.js
   data/shared/connect.js
+  data/shared/waiting.js
+  data/shared/year.js
+  data/shared/people.js
+  data/shared/people-things.js
   data/shared/df-data.js
 
 # How it looks, in the order the rules apply.
@@ -101,6 +105,7 @@ built/app.css smaller
   styles/shoot-mode-dark.css
   styles/shoot-mode-dark-popups.css
   styles/options-sheet.css
+  styles/finals-ref.css
 
 # The screens and popups, in the order they sit in the page. Each piece starts
 # with a line saying what it is, which isn't joined.
@@ -111,6 +116,7 @@ built/markup.js
   pages/shoot/shoot-page-2.html
   pages/shoot/shoot-more.html
   pages/shoot/status-sheet.html
+  pages/shoot/finals-ref.html
   pages/app-menu/photographer.html
   pages/shoot/people.html
   pages/shoot/location.html
@@ -176,6 +182,11 @@ built/app.js smaller
   components/row-words.js
   components/shoot-stage.js
   components/today-items.js
+  components/shelf-items.js
+  components/people-out.js
+  components/talent-since.js
+  components/lessons-to-ref.js
+  components/finals-tags.js
   components/status-steps.js
   components/helpers.js
   components/held-upright.js
@@ -280,6 +291,7 @@ built/app.js smaller
   pages/shoot/report-cards.js
   pages/shoot/next-step.js
   pages/shoot/status-sheet.js
+  pages/shoot/finals-ref.js
   pages/shoot/status-card.js
   components/toast.js
   components/confirm.js
