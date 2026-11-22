@@ -118,7 +118,9 @@ window.EyeParts.addShootMoodboard = function addShootMoodboard(ed) {
         const openBtn = row.querySelector('[data-ref-open]');
         if (openBtn) openBtn.addEventListener('click', () => {
           ed.saveShootNow();
-          location.href = ed.refApi.notebookUrl('ref', { board: l.fromId });
+          // Ref's back goes to this shoot, on this page (components/ref-return.js).
+          ed.noteRefReturn(ed.currentShootId, { id: ed.shootPageId, sub: ed.shootSub });
+          location.href = ed.refApi.notebookUrl('ref', { board: l.fromId, shoot: ed.currentShootId });
         });
         row.querySelector('[data-ref-detach]').addEventListener('click', async () => {
           const yes = await ed.askConfirm({
@@ -224,12 +226,29 @@ window.EyeParts.addShootMoodboard = function addShootMoodboard(ed) {
       if (c && ed.hasText(c.name) && !ed.currentTalents.length) {
         ed.currentTalents = [{ id: ed.uid(), name: c.name.trim(), socialHandles: ed.hasText(c.handle) ? [{ platform: 'instagram', handle: c.handle.trim() }] : [], photo: '' }];
         ed.renderTalents();
+        if (c.from) clientPhoto(c.from, ed.currentTalents[0]);
       }
       ed.updateShootRunningHead();
       ed.autosaveShoot(true);
       return ed.refApi.saveLink({ ...l, toId: ed.currentShootId, pending: false })
         .then(loadRefBoardShoots)
         .then(renderRefBoards);
+    }).catch(() => {});
+  }
+  // Their photo from Rounds, as the yes passed to Ref kept it (refining
+  // round, 21 Nov): onto the talent, unless one was picked meanwhile.
+  function clientPhoto(yesId, talent) {
+    ed.refApi.linkPictures(yesId).then(p => {
+      const c = p && p.cover;
+      if (!c || !c.bytes) return;
+      const r = new FileReader();
+      r.onload = () => {
+        if (talent.photo || !ed.currentTalents.includes(talent)) return;
+        talent.photo = r.result;
+        ed.renderTalents();
+        ed.autosaveShoot(true);
+      };
+      r.readAsDataURL(new Blob([c.bytes], { type: c.type || 'image/jpeg' }));
     }).catch(() => {});
   }
   // On the way in: which shoots have boards, any shot since frozen, and a
